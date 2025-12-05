@@ -88,12 +88,6 @@ export default function ReceiptsUploadPage() {
         {message && (
           <p className="mt-4 text-sm text-slate-700">{message}</p>
         )}
-
-        {/* {uploadedUrl && (
-          <div className="mt-4 text-xs text-slate-500 break-all">
-            Stored at: <span className="font-mono">{uploadedUrl}</span>
-          </div>
-        )} */}
       </div>
     </main>
   );

@@ -1,0 +1,20 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Receipt {
+  id            String   @id @default(cuid())
+  userId        String
+  s3Key         String
+  s3Url         String
+  status        String   @default("uploaded") // uploaded | processing | parsed | error
+  extractedJson Json?
+  createdAt     DateTime @default(now())
+}
