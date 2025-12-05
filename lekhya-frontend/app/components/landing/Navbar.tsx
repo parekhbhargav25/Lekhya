@@ -1,6 +1,7 @@
 // app/components/landing/Navbar.tsx
 import Image from "next/image";
 import lekhyaLogo from '../../../public/LekhyaLogo.png';
+import { NavbarAuthButtons } from "../NavbarAuthButtons";
 
 export default function Navbar() {
   return (
@@ -32,12 +33,7 @@ export default function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <button className="hidden sm:inline-flex text-sm px-4 py-2 rounded-full bg-white/70 border border-slate-200 text-slate-700 shadow-sm hover:bg-white transition-colors">
-            Blog
-          </button>
-          <button className="text-sm px-5 py-2.5 rounded-full bg-gradient-to-r from-[#7b61ff] to-[#a58fff] text-white font-semibold shadow-md hover:shadow-lg transition">
-            Join the waitlist
-          </button>
+        <NavbarAuthButtons />
         </div>
       </div>
     </header>

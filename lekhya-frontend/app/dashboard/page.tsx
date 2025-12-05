@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { AnimatedNumber } from "../ui/AnimatedNumber";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 type ExtractedReceipt = {
   merchant: string;
@@ -26,23 +28,67 @@ type ReceiptRow = {
   s3Url: string;
   status: string;
   extractedJson: ExtractedReceipt | null;
+  categoryOverride?: string | null; // <-- add this
   createdAt: string;
 };
 
 export default function DashboardPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  
+  const userId = session?.user?.email;
+  
+
   const [receipts, setReceipts] = useState<ReceiptRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [runningId, setRunningId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [range, setRange] = useState<"this-month" | "last-month" | "all-time">(
+    "this-month"
+  );
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewType, setPreviewType] = useState<"image" | "pdf" | "other" | null>(null);
+  
+  function openPreview(url: string) {
+    const lower = url.toLowerCase();
+  
+    if (lower.endsWith(".pdf")) {
+      setPreviewType("pdf");
+    } else if (/\.(png|jpe?g|gif|webp)$/.test(lower)) {
+      setPreviewType("image");
+    } else {
+      setPreviewType("other");
+    }
+  
+    setPreviewUrl(url);
+  }
+  
+  function closePreview() {
+    setPreviewUrl(null);
+    setPreviewType(null);
+  }
 
-  async function fetchReceipts() {
+  function getCategory(r: ReceiptRow): string {
+    if (r["categoryOverride"]) {
+      // TS might complain since it's not in type; we'll fix type in a sec
+      // @ts-ignore
+      return r.categoryOverride || "Uncategorized";
+    }
+    return r.extractedJson?.category?.trim() || "Uncategorized";
+  }
+
+  async function fetchReceipts(currentUserId: string) {
     try {
       setLoading(true);
       setError(null);
-
-      const res = await fetch("/api/receipts");
+  
+      const res = await fetch("/api/receipts", {
+        method: "GET",
+        headers: { "x-user-id": currentUserId },
+        credentials: "include",
+      });
+  
       const text = await res.text();
-
       let data: any;
       try {
         data = JSON.parse(text);
@@ -54,11 +100,11 @@ export default function DashboardPage() {
           )}…`
         );
       }
-
+  
       if (!res.ok) {
         throw new Error(data.error || "Failed to load receipts");
       }
-
+  
       const mapped: ReceiptRow[] = (data.receipts || []).map((r: any) => ({
         id: r.id,
         userId: r.userId,
@@ -67,8 +113,9 @@ export default function DashboardPage() {
         status: r.status,
         extractedJson: (r.extractedJson ?? null) as ExtractedReceipt | null,
         createdAt: r.createdAt,
+        categoryOverride: r.categoryOverride ?? null,
       }));
-
+  
       setReceipts(mapped);
     } catch (err: any) {
       setError(err.message || "Error loading receipts");
@@ -81,11 +128,18 @@ export default function DashboardPage() {
     try {
       setRunningId(id);
       setError(null);
-
+  
+      if (!userId) {
+        setError("Missing user id. Please log in again.");
+        return;
+      }
+      
       const res = await fetch(`/api/receipts/${id}/extract`, {
         method: "POST",
+        headers: { "x-user-id": userId },
+        credentials: "include",
       });
-
+  
       const text = await res.text();
       let data: any;
       try {
@@ -98,21 +152,20 @@ export default function DashboardPage() {
           )}…`
         );
       }
-
+  
       if (!res.ok) {
         throw new Error(data.error || "Extraction failed");
       }
-
+  
       const updated = data.receipt as any;
-
+  
       setReceipts((prev) =>
         prev.map((r) =>
           r.id === id
             ? {
                 ...r,
                 status: updated.status,
-                extractedJson: (updated.extractedJson ??
-                  null) as ExtractedReceipt | null,
+                extractedJson: updated.extractedJson ?? null,
               }
             : r
         )
@@ -124,12 +177,63 @@ export default function DashboardPage() {
     }
   }
 
+  // 🔹 auth guard effect – always runs
   useEffect(() => {
-    fetchReceipts();
-  }, []);
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
+
+  // 🔹 fetch receipts effect – always runs (once on mount)
+  useEffect(() => {
+    // don’t call API until we know userId
+    if (!userId) return;
+    fetchReceipts(userId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  // 🔹 early returns AFTER all hooks
+  if (status === "loading") {
+    return (
+      <main className="min-h-screen bg-[#f5ecff] flex items-center justify-center">
+        <p className="text-sm text-slate-500">Checking session…</p>
+      </main>
+    );
+  }
+
+  if (status === "unauthenticated") {
+    // redirect will happen, but render nothing meanwhile
+    return null;
+  }
+
+  // ----- Time range filtering -----
+  function isInRange(createdAt: string) {
+    if (range === "all-time") return true;
+
+    const d = new Date(createdAt);
+    const now = new Date();
+
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
+
+    if (range === "this-month") {
+      return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+    }
+
+    // last-month
+    let lastMonth = thisMonth - 1;
+    let year = thisYear;
+    if (lastMonth < 0) {
+      lastMonth = 11;
+      year = thisYear - 1;
+    }
+    return d.getMonth() === lastMonth && d.getFullYear() === year;
+  }
+
+  const receiptsInRange = receipts.filter((r) => isInRange(r.createdAt));
 
   // ----- Derived summary stats -----
-  const parsedReceipts = receipts.filter(
+  const parsedReceipts = receiptsInRange.filter(
     (r) => r.extractedJson && typeof r.extractedJson.total === "number"
   );
   const totalSpent = parsedReceipts.reduce(
@@ -140,7 +244,7 @@ export default function DashboardPage() {
   // ----- Category breakdown (all categories) -----
   const categoryMap: Record<string, { total: number; count: number }> = {};
   for (const r of parsedReceipts) {
-    const cat = (r.extractedJson?.category || "Uncategorized").trim();
+    const cat = getCategory(r);
     if (!categoryMap[cat]) categoryMap[cat] = { total: 0, count: 0 };
     categoryMap[cat].total += r.extractedJson?.total || 0;
     categoryMap[cat].count += 1;
@@ -172,13 +276,40 @@ export default function DashboardPage() {
               Your AI-powered overview of monthly spending.
             </p>
           </div>
+
+          <div className="flex items-center gap-3 self-start sm:self-auto">
           <button
-            onClick={fetchReceipts}
-            disabled={loading}
-            className="self-start px-5 py-2 rounded-full bg-white text-slate-900 text-sm font-semibold shadow-sm border border-slate-200 disabled:opacity-60"
+            onClick={() => router.push("/receipts")}
+            className="hidden sm:inline-flex items-center px-4 py-2 rounded-full 
+                      bg-gradient-to-r from-[#7b61ff] to-[#a58fff] 
+                      text-white text-sm font-semibold shadow-md"
           >
-            {loading ? "Refreshing…" : "Refresh"}
+            Upload receipt
           </button>
+            {/* Time range selector */}
+            <select
+              value={range}
+              onChange={(e) =>
+                setRange(
+                  e.target.value as "this-month" | "last-month" | "all-time"
+                )
+              }
+              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 shadow-sm"
+            >
+              <option value="this-month">This month</option>
+              <option value="last-month">Last month</option>
+              <option value="all-time">All time</option>
+            </select>
+
+            {/* Refresh button */}
+            <button
+              onClick={() => userId && fetchReceipts(userId)}
+              disabled={loading}
+              className="px-5 py-2 rounded-full bg-white text-slate-900 text-sm font-semibold shadow-sm border border-slate-200 disabled:opacity-60"
+            >
+              {loading ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
         </header>
 
         {/* Error banner */}
@@ -201,9 +332,9 @@ export default function DashboardPage() {
               </p>
               <p className="mt-1 text-xs text-emerald-600 font-medium">
                 +18.2% vs last month
-                <span className="text-[11px] text-slate-400 font-normal ml-1">
+                {/* <span className="text-[11px] text-slate-400 font-normal ml-1">
                   (placeholder)
-                </span>
+                </span> */}
               </p>
             </div>
 
@@ -248,7 +379,6 @@ export default function DashboardPage() {
             )}
           </div>
 
-
           {/* Row 3: Weekly expense trend placeholder */}
           <div className="rounded-[28px] bg-gradient-to-r from-[#f4f7ff] via-[#f3f6ff] to-[#f7f0ff] border border-[#e1e5ff] h-40 flex items-center justify-center text-sm text-slate-500">
             Weekly expense trend (coming soon)
@@ -279,7 +409,7 @@ export default function DashboardPage() {
                         {parsed.merchant || "Unknown merchant"}
                       </span>
                       <span className="text-xs text-slate-500 mt-1">
-                        {parsed.category || "Uncategorized"}
+                        {getCategory(r)}
                       </span>
                     </div>
                     <div className="text-sm font-semibold text-slate-900">
@@ -296,7 +426,7 @@ export default function DashboardPage() {
         {receipts.length > 0 && (
           <section className="mb-10">
             <h2 className="text-sm font-semibold text-slate-900 mb-3">
-              All receipts & AI details
+              All receipts
             </h2>
             <div className="space-y-4">
               {receipts.map((r) => {
@@ -315,18 +445,6 @@ export default function DashboardPage() {
                           <span className="font-mono text-[11px]">
                             {r.id}
                           </span>
-                        </p>
-
-                        <p className="text-xs text-slate-500">
-                          S3:{" "}
-                          <a
-                            href={r.s3Url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="font-mono text-[11px] text-violet-600 underline"
-                          >
-                            {r.s3Url}
-                          </a>
                         </p>
 
                         <p className="text-xs text-slate-500">
@@ -362,6 +480,35 @@ export default function DashboardPage() {
                             ? "Re-run AI extraction"
                             : "Run AI extraction"}
                         </button>
+
+                        {/* NEW: Delete button */}
+                        <button
+                          onClick={async () => {
+                            if (!confirm("Delete this receipt?")) return;
+
+                            try {
+                              const res = await fetch(`/api/receipts/${r.id}`, {
+                                method: "DELETE",
+                                headers: userId ? { "x-user-id": userId } : {},
+                                credentials: "include",
+                              });
+                              const data = await res.json();
+                              if (!res.ok) throw new Error(data.error || "Delete failed");
+
+                              // remove from local state
+                              setReceipts((prev) => prev.filter((rec) => rec.id !== r.id));
+                            } catch (err) {
+                              console.error(err);
+                              alert("Failed to delete receipt");
+                            }
+                          }}
+                          className="flex items-center gap-1 px-3 py-1 text-xs font-semibold 
+                                    rounded-full border border-red-200 
+                                    text-red-700 bg-red-50 
+                                    hover:bg-red-100 transition"
+                        >
+                          <span>🗑️</span>Delete
+                        </button>
                       </div>
                     </div>
 
@@ -371,11 +518,24 @@ export default function DashboardPage() {
                           <p className="text-sm font-semibold text-slate-900">
                             {parsed.merchant || "Unknown merchant"}
                           </p>
+
                           {parsed.category && (
-                            <span className="text-xs rounded-full bg-white px-2 py-1 text-violet-700 border border-violet-200">
+                            <span className="text-xs rounded-full bg-white px-3 py-1 text-violet-700 border border-violet-200">
                               {parsed.category}
                             </span>
                           )}
+
+                          {/* NEW: Show receipt button */}
+                          <button
+                            type="button"
+                            onClick={() => openPreview(r.s3Url)}
+                            className="text-xs font-semibold px-3 py-1 rounded-full 
+                                      border border-violet-200 bg-white 
+                                      text-violet-700 hover:bg-violet-50 
+                                      transition"
+                          >
+                            Show receipt
+                          </button>
                         </div>
 
                         <div className="flex flex-wrap gap-4 text-xs text-slate-600">
@@ -412,17 +572,6 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     )}
-
-                    {/* {parsed && (
-                      <details className="mt-3 rounded-2xl bg-[#faf5ff] border border-violet-100 px-3 py-2">
-                        <summary className="text-xs text-slate-700 cursor-pointer">
-                          View raw extracted JSON
-                        </summary>
-                        <pre className="mt-2 text-[11px] text-slate-800 overflow-x-auto">
-                          {JSON.stringify(parsed, null, 2)}
-                        </pre>
-                      </details>
-                    )} */}
                   </div>
                 );
               })}
@@ -430,6 +579,53 @@ export default function DashboardPage() {
           </section>
         )}
       </div>
+      {previewUrl && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                <div className="relative w-full max-w-3xl max-h-[90vh] bg-white rounded-2xl shadow-lg overflow-hidden">
+                  {/* Close button */}
+                  <button
+                    type="button"
+                    onClick={closePreview}
+                    className="absolute top-3 right-3 text-slate-600 hover:text-slate-900 text-sm"
+                  >
+                    ✕
+                  </button>
+
+                  {previewType === "image" && (
+                    <div className="bg-slate-50 flex items-center justify-center">
+                      <img
+                        src={previewUrl}
+                        alt="Receipt preview"
+                        className="max-h-[80vh] w-auto object-contain"
+                      />
+                    </div>
+                  )}
+
+                  {previewType === "pdf" && (
+                    <iframe
+                      src={previewUrl}
+                      className="w-full h-[80vh]"
+                    />
+                  )}
+
+                  {previewType === "other" && (
+                    <div className="p-6 text-sm text-slate-700">
+                      <p className="mb-3">
+                        Preview not available for this file type.
+                      </p>
+                      <a
+                        href={previewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-violet-600 underline"
+                      >
+                        Open in new tab
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
     </main>
   );
 }

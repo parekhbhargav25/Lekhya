@@ -2,6 +2,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useSession } from "next-auth/react";
 
 export default function ReceiptsUploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -9,30 +12,60 @@ export default function ReceiptsUploadPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
 
+  const { data: session, status } = useSession();
+  const userId = session?.user?.email ?? null;
+  
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
+
+  if (status === "loading") {
+    return (
+      <main className="min-h-screen bg-[#f5ecff] flex items-center justify-center">
+        <p className="text-sm text-slate-500">Checking session…</p>
+      </main>
+    );
+  }
+
+  if (status === "unauthenticated") {
+    return null;
+  }
+
   async function handleUpload() {
     if (!file) {
       setMessage("Please select a file first.");
       return;
     }
-
+  
+    if (!userId) {
+      setMessage("Missing user id. Please log in again.");
+      return;
+    }
+  
     setUploading(true);
     setMessage(null);
     setUploadedUrl(null);
-
+  
     const formData = new FormData();
     formData.append("file", file);
-
+  
     try {
       const res = await fetch("/api/receipts", {
         method: "POST",
+        headers: { "x-user-id": userId },
         body: formData,
+        credentials: "include",
       });
-
+  
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Upload failed");
       }
-
+  
       setUploadedUrl(data.url);
       setMessage("Receipt uploaded successfully!");
     } catch (err: any) {
