@@ -1,19 +1,26 @@
+// app/api/receipts/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { uploadReceiptToS3 } from "@/lib/s3";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { uploadReceiptToS3 } from "@/lib/s3";
 
-// POST /api/receipts  -> upload + create DB row for this user
+export const runtime = "nodejs";
+
+// POST /api/receipts  -> upload file + create DB row
 export async function POST(req: NextRequest) {
+  // 🔐 Require login
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.email;
+
+  if (!userId) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
   try {
-    const userId = req.headers.get("x-user-id");
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized: missing user id" },
-        { status: 401 }
-      );
-    }
-
     const formData = await req.formData();
     const file = formData.get("file");
 
@@ -24,8 +31,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Upload to S3
     const { key, url } = await uploadReceiptToS3(file);
 
+    // Save in DB
     const receipt = await prisma.receipt.create({
       data: {
         userId,
@@ -41,7 +50,6 @@ export async function POST(req: NextRequest) {
         receiptId: receipt.id,
         s3Key: key,
         s3Url: url,
-        url,
       },
       { status: 200 }
     );
@@ -54,18 +62,19 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET /api/receipts -> list receipts for this user
+// GET /api/receipts -> list this user's receipts
 export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.email;
+
+  if (!userId) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
   try {
-    const userId = req.headers.get("x-user-id");
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized: missing user id" },
-        { status: 401 }
-      );
-    }
-
     const receipts = await prisma.receipt.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
