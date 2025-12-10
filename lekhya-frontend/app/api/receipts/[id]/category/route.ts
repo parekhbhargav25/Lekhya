@@ -4,13 +4,17 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-type RouteContext = {
-  params: Promise<{ id: string }>;
+type RouteParams = {
+  params: { id: string };
 };
 
-export async function PATCH(req: NextRequest, context: RouteContext) {
-  // ✅ unwrap the Promise
-  const { id } = await context.params;
+export const runtime = "nodejs";
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: RouteParams
+) {
+  const { id } = params;
 
   if (!id) {
     return NextResponse.json(
@@ -19,6 +23,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     );
   }
 
+  // ✅ Auth – only allow the logged-in user to change their own category
   const session = await getServerSession(authOptions);
   const userId = session?.user?.email;
 
@@ -29,6 +34,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     );
   }
 
+  // Read new category from body
   const body = await req.json().catch(() => null);
   const category = (body?.category as string | undefined)?.trim();
 
@@ -39,24 +45,30 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     );
   }
 
-  // ensure this receipt belongs to this user
-  const receipt = await prisma.receipt.findUnique({
-    where: { id },
-  });
+  try {
+    // Make sure the receipt belongs to this user
+    const existing = await prisma.receipt.findUnique({
+      where: { id },
+    });
 
-  if (!receipt || receipt.userId !== userId) {
+    if (!existing || existing.userId !== userId) {
+      return NextResponse.json(
+        { error: "Receipt not found" },
+        { status: 404 }
+      );
+    }
+
+    const updated = await prisma.receipt.update({
+      where: { id },
+      data: { categoryOverride: category },
+    });
+
+    return NextResponse.json({ receipt: updated }, { status: 200 });
+  } catch (err) {
+    console.error("Error updating category", err);
     return NextResponse.json(
-      { error: "Receipt not found" },
-      { status: 404 }
+      { error: "Failed to update category" },
+      { status: 500 }
     );
   }
-
-  const updated = await prisma.receipt.update({
-    where: { id },
-    data: {
-      categoryOverride: category,
-    },
-  });
-
-  return NextResponse.json({ receipt: updated }, { status: 200 });
 }
