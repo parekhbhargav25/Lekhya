@@ -1,4 +1,4 @@
-// app/api/receipts/[id]/extract/route.ts
+// app/api/receipts/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
@@ -13,6 +13,59 @@ export const runtime = "nodejs";
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
+
+export async function DELETE(req: NextRequest, context: RouteContext) {
+  const { id } = await context.params;
+
+  if (!id) {
+    return NextResponse.json(
+      { error: "Missing receipt id in URL" },
+      { status: 400 }
+    );
+  }
+
+  // 🔐 Auth check
+  const session = await auth();
+  const userId =
+    (session?.user as any)?.id ?? (session?.user as any)?.email ?? null;
+
+  if (!userId) {
+    return NextResponse.json(
+      { error: "Unauthorized: missing user id" },
+      { status: 401 }
+    );
+  }
+
+  try {
+    // Ensure this receipt belongs to this user
+    const receipt = await prisma.receipt.findFirst({
+      where: { id, userId },
+    });
+
+    if (!receipt) {
+      return NextResponse.json(
+        { error: "Receipt not found" },
+        { status: 404 }
+      );
+    }
+
+    // Delete the receipt
+    await prisma.receipt.delete({
+      where: { id },
+    });
+
+    return NextResponse.json(
+      { success: true, message: "Receipt deleted successfully" },
+      { status: 200 }
+    );
+  } catch (err: any) {
+    console.error("Delete receipt error", err);
+    return NextResponse.json(
+      { error: err.message || "Failed to delete receipt" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(req: NextRequest, context: RouteContext) {
   const { id } = await context.params;

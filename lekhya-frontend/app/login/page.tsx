@@ -36,9 +36,6 @@ export default function LoginPage() {
         <h1 className="text-xl font-semibold text-slate-900 mb-1">
           Sign in to Lekhya
         </h1>
-        <p className="text-xs text-slate-600 mb-4">
-          Use any email for now — this is a demo login.
-        </p>
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
