@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AnimatedNumber } from "../ui/AnimatedNumber";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { ChatbotWidget } from "./ChatbotWidget";
 
 type ExtractedReceipt = {
   merchant: string;
@@ -129,15 +130,9 @@ export default function DashboardPage() {
       setRunningId(id);
       setError(null);
   
-      if (!userId) {
-        setError("Missing user id. Please log in again.");
-        return;
-      }
-      
       const res = await fetch(`/api/receipts/${id}/extract`, {
         method: "POST",
-        headers: { "x-user-id": userId },
-        credentials: "include",
+        credentials: "include", // send session cookie
       });
   
       const text = await res.text();
@@ -165,7 +160,8 @@ export default function DashboardPage() {
             ? {
                 ...r,
                 status: updated.status,
-                extractedJson: updated.extractedJson ?? null,
+                extractedJson: (updated.extractedJson ??
+                  null) as ExtractedReceipt | null,
               }
             : r
         )
@@ -626,6 +622,8 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+            < ChatbotWidget />
     </main>
+
   );
 }

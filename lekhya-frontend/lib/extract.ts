@@ -1,17 +1,17 @@
-
-  
-
-
 // lib/extract.ts
 import OpenAI from "openai";
 
-export const USE_MOCK_AI =
-  process.env.NEXT_PUBLIC_USE_MOCK_AI === "true";
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Toggle mock via env if you ever want to
+export const USE_MOCK_AI = process.env.MOCK_RECEIPT_AI === "true";
 
 export type ExtractedReceipt = {
-  merchant: string;
-  date: string;         // ISO string YYYY-MM-DD
-  total: number;
+  merchant: string | null;
+  date: string | null; // ISO-like string
+  total: number | null;
   tax?: number | null;
   currency?: string | null;
   category?: string | null;
@@ -24,112 +24,109 @@ export type ExtractedReceipt = {
   notes?: string | null;
 };
 
-// ---------- MOCK VERSION (keep for testing) ----------
-export async function extractReceiptFromImageMock(args: {
+// Simple mock for testing / dev
+export async function extractReceiptFromImageMock(_params: {
   s3Url: string;
 }): Promise<ExtractedReceipt> {
-  const { s3Url } = args;
-
   return {
-    merchant: "Mock Coffee Shop",
-    date: new Date().toISOString().slice(0, 10),
-    total: 12.5,
-    tax: 1.5,
+    merchant: "MockMart",
+    date: "2025-02-01",
+    total: 45.67,
+    tax: 5.0,
     currency: "CAD",
-    category: "Dining",
-    paymentMethod: "Card",
+    category: "Groceries",
+    paymentMethod: "Visa",
     lineItems: [
-      { description: "Latte", qty: 1, price: 5.0 },
-      { description: "Croissant", qty: 1, price: 4.0 },
+      { description: "Mock item A", qty: 1, price: 20.0 },
+      { description: "Mock item B", qty: 2, price: 12.84 },
     ],
-    notes: `Mock extraction for ${s3Url}`,
+    notes: "Mocked AI output",
   };
 }
 
-// ---------- REAL LLM VERSION ----------
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-/**
- * Uses an LLM with vision to parse the receipt image at the given S3 URL
- * into a structured JSON object that matches ExtractedReceipt.
- */
-export async function extractReceiptFromImageLLM(args: {
+// 🚀 Real extraction using OpenAI directly (vision + JSON)
+export async function extractReceiptFromImageLLM(params: {
   s3Url: string;
 }): Promise<ExtractedReceipt> {
-  const { s3Url } = args;
-
   if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not set");
+    throw new Error("Missing OPENAI_API_KEY environment variable");
   }
 
+  const { s3Url } = params;
+
+  const systemPrompt = `
+You are an expert system that extracts structured expense data from receipts.
+
+You are given an image of a receipt (via URL). Your job is to read it and return a JSON object describing the purchase.
+
+Rules:
+- Return ONLY valid JSON (no markdown, no extra text).
+- If a field is missing, use null.
+- "date" should be a string (any recognizable date format from the receipt).
+- "total" should be the final total amount charged.
+- "category" should be a short label (e.g. "Groceries", "Dining", "Fuel", "Transport", "Shopping", "Utilities", "Healthcare", etc.).
+- "lineItems" should be as descriptive as possible. Expand abbreviations if you can infer them.
+`;
+
+  const userText = `
+Please extract the purchase information from this receipt image.
+
+The fields you must return:
+
+{
+  "merchant": string | null,
+  "date": string | null,
+  "total": number | null,
+  "tax": number | null,
+  "currency": string | null,
+  "category": string | null,
+  "paymentMethod": string | null,
+  "lineItems": [
+    {
+      "description": string,
+      "qty": number | null,
+      "price": number | null
+    }
+  ],
+  "notes": string | null
+}
+`;
+
   const response = await openai.chat.completions.create({
-    model: "gpt-4.1-mini",
+    model: "gpt-4o-mini", // supports vision + JSON
     response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
-        content:
-          "You are an assistant that reads shopping receipts and returns clean, structured JSON.",
+        content: systemPrompt,
       },
       {
         role: "user",
         content: [
-          {
-            type: "text",
-            text: `
-Read the receipt image and return JSON matching this TypeScript type:
-
-type ExtractedReceipt = {
-  merchant: string;
-  date: string;          // ISO format YYYY-MM-DD
-  total: number;
-  tax?: number | null;
-  currency?: string | null;
-  category?: string | null;
-  paymentMethod?: string | null;
-  lineItems?: {
-    description: string;     // human-friendly product name
-    qty?: number | null;
-    price?: number | null;
-  }[];
-  notes?: string | null;
-};
-
-IMPORTANT RULES:
-
-- "description" must be a human-friendly, expanded product name, not a code.
-  - Use abbreviations as hints and decode them.
-  - Example: "MV SS&MV" on a Canadian grocery receipt is very likely
-    "Miss Vickie's potato chips - Sea Salt & Malt Vinegar".
-- If you can reasonably infer the brand and product from the code, expand it.
-- If you truly cannot infer the product or not too sure, then use the raw text from the receipt.
-- Keep prices and quantities accurate from the receipt.
-- "date" must be in YYYY-MM-DD format.
-- "category" should be a broad category like "Groceries", "Dining", "Electronics", etc.
-- If a field is missing on the receipt, set it to null or an empty array.
-
-Only return valid JSON, with no extra commentary.
-`,
-          },
+          { type: "text", text: userText },
           {
             type: "image_url",
-            image_url: { url: s3Url },
+            image_url: {
+              url: s3Url,
+            },
           },
         ],
       },
     ],
   });
 
-  const raw = response.choices[0].message.content;
-
-  if (!raw) {
-    throw new Error("No content returned from model");
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("OpenAI returned empty content.");
   }
 
-  // content is a string containing JSON
-  const parsed = JSON.parse(raw) as ExtractedReceipt;
+  let parsed: ExtractedReceipt;
+  try {
+    parsed = JSON.parse(content) as ExtractedReceipt;
+  } catch (err) {
+    console.error("Failed to parse AI JSON:", content);
+    throw new Error("Failed to parse AI JSON");
+  }
 
   return parsed;
 }

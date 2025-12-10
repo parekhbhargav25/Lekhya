@@ -22,13 +22,12 @@ export default function Hero() {
           <button className="px-6 py-3 rounded-full bg-gradient-to-r from-[#7b61ff] to-[#a58fff] text-white font-semibold text-sm md:text-base shadow-md hover:shadow-lg transition">
             Get started
           </button>
-          <button className="px-6 py-3 rounded-full bg-white/80 border border-slate-200 text-slate-700 text-sm md:text-base shadow-sm hover:bg-white transition">
+          {/* <button className="px-6 py-3 rounded-full bg-white/80 border border-slate-200 text-slate-700 text-sm md:text-base shadow-sm hover:bg-white transition">
             Watch how it works
-          </button>
+          </button> */}
         </div>
   
         <p className="mt-4 text-xs text-slate-500">
-          No credit card required • Perfect for freelancers and small teams
         </p>
       </div>
     );

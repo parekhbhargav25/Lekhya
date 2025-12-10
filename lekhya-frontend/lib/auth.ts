@@ -1,8 +1,9 @@
-// lib/auth.ts
 import type { NextAuthOptions } from "next-auth";
+import { getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
       name: "Demo login",
@@ -13,9 +14,8 @@ export const authOptions: NextAuthOptions = {
         const email = credentials?.email?.trim();
         if (!email) return null;
 
-        // For now: accept ANY email and treat it as the user’s ID.
         return {
-          id: email,
+          id: email, // treat email as user id
           email,
           name: email.split("@")[0] || "User",
         };
@@ -26,6 +26,24 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   pages: {
-    signIn: "/login", // use our custom login page
+    signIn: "/login",
+  },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = (user as any).id;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user && token.id) {
+        (session.user as any).id = token.id as string;
+      }
+      return session;
+    },
   },
 };
+
+export function auth() {
+  return getServerSession(authOptions);
+}

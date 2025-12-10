@@ -1,131 +1,35 @@
-// // // app/api/receipts/[id]/route.ts
-// // import { NextRequest, NextResponse } from "next/server";
-// // import { prisma } from "@/lib/prisma";
-
-// // // type RouteParams = {
-// // //   params: { id: string };
-// // // };
-
-// // export async function DELETE(
-// //   _req: NextRequest,
-// //   context: { params: Promise<{ id: string }> }
-// // ) {
-// //   // In this Next.js version, params is a Promise – we must await it
-// //   const { id } = await context.params;
-
-// //   if (!id) {
-// //     console.error("Missing id in route params:", context);
-// //     return NextResponse.json(
-// //       { error: "Missing receipt id" },
-// //       { status: 400 }
-// //     );
-// //   }
-
-// //   try {
-// //     await prisma.receipt.delete({
-// //       where: { id },
-// //     });
-
-// //     return NextResponse.json({ success: true }, { status: 200 });
-// //   } catch (err: any) {
-// //     console.error("Delete receipt error", err);
-// //     return NextResponse.json(
-// //       { error: "Failed to delete receipt" },
-// //       { status: 500 }
-// //     );
-// //   }
-// // }
-
-// // app/api/receipts/[id]/route.ts
-// import { NextRequest, NextResponse } from "next/server";
-// import { prisma } from "@/lib/prisma";
-// import { deleteFromS3ByKey } from "../../../../lib/s3";
-// import { getServerSession } from "next-auth";
-// import { authOptions } from "@/lib/auth";
-
-// function getUserKey(session: any | null): string | null {
-//   if (!session || !session.user) return null;
-//   return (session.user as any).id || (session.user as any).email || null;
-// }
-
-// export async function DELETE(
-//   req: NextRequest,
-//   context: { params: Promise<{ id: string }> }
-// ) {
-//   const { id } = await context.params;
-
-//   if (!id) {
-//     return NextResponse.json(
-//       { error: "Missing receipt id" },
-//       { status: 400 }
-//     );
-//   }
-
-//   const session = await getServerSession(authOptions);
-//   const userKey = getUserKey(session);
-
-//   if (!userKey) {
-//     return NextResponse.json(
-//       { error: "Unauthorized" },
-//       { status: 401 }
-//     );
-//   }
-
-//   try {
-//     // Ensure the receipt belongs to this user
-//     const receipt = await prisma.receipt.findFirst({
-//       where: { id, userId: userKey },
-//     });
-
-//     if (!receipt) {
-//       return NextResponse.json(
-//         { error: "Receipt not found" },
-//         { status: 404 }
-//       );
-//     }
-
-//     // Delete from S3 (optional but nice)
-//     try {
-//       await deleteFromS3ByKey(receipt.s3Key);
-//     } catch (e) {
-//       console.error("Failed to delete from S3", e);
-//       // we still proceed to delete the DB row
-//     }
-
-//     // Delete DB row
-//     await prisma.receipt.delete({
-//       where: { id: receipt.id },
-//     });
-
-//     return NextResponse.json({ success: true }, { status: 200 });
-//   } catch (err) {
-//     console.error("Delete receipt error", err);
-//     return NextResponse.json(
-//       { error: "Failed to delete receipt" },
-//       { status: 500 }
-//     );
-//   }
-// }
-
-
+// app/api/receipts/[id]/extract/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { deleteFromS3ByKey } from "@/lib/s3";
+import { auth } from "@/lib/auth";
+import {
+  USE_MOCK_AI,
+  extractReceiptFromImageLLM,
+  extractReceiptFromImageMock,
+} from "@/lib/extract";
 
-export async function DELETE(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+export const runtime = "nodejs";
+
+type RouteContext = {
+  params: Promise<{ id: string }>;
+};
+
+export async function POST(req: NextRequest, context: RouteContext) {
   const { id } = await context.params;
 
   if (!id) {
+    console.error("Missing receipt id in URL:", context);
     return NextResponse.json(
-      { error: "Missing receipt id" },
+      { error: "Missing receipt id in URL" },
       { status: 400 }
     );
   }
 
-  const userId = req.headers.get("x-user-id");
+  // 🔐 Auth check (same as before)
+  const session = await auth();
+  const userId =
+    (session?.user as any)?.id ?? (session?.user as any)?.email ?? null;
+
   if (!userId) {
     return NextResponse.json(
       { error: "Unauthorized: missing user id" },
@@ -134,7 +38,7 @@ export async function DELETE(
   }
 
   try {
-    // Only delete if it belongs to this user
+    // 1) Ensure this receipt belongs to this user
     const receipt = await prisma.receipt.findFirst({
       where: { id, userId },
     });
@@ -146,21 +50,41 @@ export async function DELETE(
       );
     }
 
-    try {
-      await deleteFromS3ByKey(receipt.s3Key);
-    } catch (e) {
-      console.error("Failed to delete from S3", e);
-    }
+    // 2) Call direct OpenAI extractor (or mock)
+    const extracted = await (USE_MOCK_AI
+      ? extractReceiptFromImageMock({ s3Url: receipt.s3Url })
+      : extractReceiptFromImageLLM({ s3Url: receipt.s3Url }));
 
-    await prisma.receipt.delete({
+    // 3) Save in DB
+    const updated = await prisma.receipt.update({
       where: { id: receipt.id },
+      data: {
+        status: "parsed",
+        extractedJson: extracted,
+      },
     });
 
-    return NextResponse.json({ success: true }, { status: 200 });
-  } catch (err) {
-    console.error("Delete receipt error", err);
     return NextResponse.json(
-      { error: "Failed to delete receipt" },
+      {
+        success: true,
+        receipt: updated,
+      },
+      { status: 200 }
+    );
+  } catch (err: any) {
+    console.error("AI extraction error (OpenAI direct)", err);
+
+    try {
+      await prisma.receipt.update({
+        where: { id },
+        data: { status: "error" },
+      });
+    } catch (inner) {
+      console.error("Failed to mark receipt as error", inner);
+    }
+
+    return NextResponse.json(
+      { error: err.message || "AI extraction failed" },
       { status: 500 }
     );
   }
