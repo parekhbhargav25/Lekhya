@@ -1,75 +1,26 @@
 // app/api/auth/signup/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
 
+// Simple placeholder signup API.
+// You can later wire this to a real User table if you want.
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { name, email, password } = body as {
-      name?: string;
-      email?: string;
-      password?: string;
-    };
+  // We can read the body if you want to log it or validate later
+  const body = await req.json().catch(() => null);
+  console.log("Signup payload (ignored in this demo):", body);
 
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: "Email and password are required" },
-        { status: 400 }
-      );
-    }
+  // For now, just pretend signup succeeded.
+  return NextResponse.json(
+    { success: true, message: "Signup endpoint is a placeholder in this demo." },
+    { status: 200 }
+  );
+}
 
-    const normalizedEmail = email.trim().toLowerCase();
-
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: "Password must be at least 6 characters" },
-        { status: 400 }
-      );
-    }
-
-    // Check if user already exists
-    const existing = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-    });
-
-    if (existing) {
-      return NextResponse.json(
-        { error: "An account with this email already exists" },
-        { status: 400 }
-      );
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        name: name?.trim() || null,
-        passwordHash,
-      },
-    });
-
-    return NextResponse.json(
-      {
-        success: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        },
-      },
-      { status: 201 }
-    );
-  } catch (err) {
-    console.error("Signup error", err);
-    return NextResponse.json(
-      { error: "Failed to sign up" },
-      { status: 500 }
-    );
-  }
+// Disallow GET on this route just to be explicit
+export async function GET() {
+  return NextResponse.json(
+    { error: "Method not allowed" },
+    { status: 405 }
+  );
 }
