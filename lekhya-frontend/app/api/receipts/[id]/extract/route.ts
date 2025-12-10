@@ -9,6 +9,8 @@ import {
 } from "@/lib/extract";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 // In your Next version, params is wrapped in a Promise for app routes
 type RouteContext = {

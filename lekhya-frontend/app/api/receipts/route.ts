@@ -74,6 +74,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { uploadReceiptToS3 } from "@/lib/s3";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 // POST /api/receipts  -> upload + create DB row for this user
 export async function POST(req: NextRequest) {
   try {

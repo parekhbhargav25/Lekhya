@@ -258,6 +258,8 @@ import { PromptTemplate } from "@langchain/core/prompts";
 import { RunnableSequence } from "@langchain/core/runnables";
 
 export const runtime = "nodejs"; // make sure we’re on the Node runtime
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 type ExpenseDoc = {
   id: string;
