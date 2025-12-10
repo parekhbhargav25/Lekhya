@@ -34,17 +34,33 @@ const globalForPrisma = globalThis as unknown as {
   prisma: any | undefined;
 };
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-const adapter = new PrismaPg(pool);
+// Initialize pool and adapter only if DATABASE_URL exists
+// This prevents build-time errors when DATABASE_URL might not be set
+let pool: Pool | null = null;
+let adapter: PrismaPg | null = null;
+
+if (process.env.DATABASE_URL) {
+  try {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+    });
+    adapter = new PrismaPg(pool);
+  } catch (err) {
+    // Silently fail during build if connection can't be established
+    console.warn("Failed to initialize database pool during build:", err);
+  }
+}
 
 export const prisma =
   globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter,
-    log: ["error", "warn"],
-  });
+  (adapter
+    ? new PrismaClient({
+        adapter,
+        log: ["error", "warn"],
+      })
+    : new PrismaClient({
+        log: ["error", "warn"],
+      }));
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
