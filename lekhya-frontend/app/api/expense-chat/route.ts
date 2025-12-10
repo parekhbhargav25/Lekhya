@@ -380,7 +380,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 4) Convert receipts into a compact JSON structure for the model
-  const expenseDocs: ExpenseDoc[] = receipts.map((r) => {
+  const expenseDocs: ExpenseDoc[] = receipts.map((r: any) => {
     const parsed = r.extractedJson as any;
 
     const rawItems = Array.isArray(parsed?.lineItems) ? parsed.lineItems : [];
