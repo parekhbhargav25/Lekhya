@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 type RouteParams = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export const runtime = "nodejs";
@@ -14,7 +14,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: RouteParams
 ) {
-  const { id } = params;
+  // ✅ params is a Promise in Next 16 – unwrap it first
+  const { id } = await params;
 
   if (!id) {
     return NextResponse.json(
@@ -23,7 +24,6 @@ export async function PATCH(
     );
   }
 
-  // ✅ Auth – only allow the logged-in user to change their own category
   const session = await getServerSession(authOptions);
   const userId = session?.user?.email;
 
@@ -34,7 +34,6 @@ export async function PATCH(
     );
   }
 
-  // Read new category from body
   const body = await req.json().catch(() => null);
   const category = (body?.category as string | undefined)?.trim();
 
@@ -46,7 +45,6 @@ export async function PATCH(
   }
 
   try {
-    // Make sure the receipt belongs to this user
     const existing = await prisma.receipt.findUnique({
       where: { id },
     });
