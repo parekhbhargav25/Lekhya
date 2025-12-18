@@ -7,17 +7,14 @@ import { uploadReceiptToS3 } from "@/lib/s3";
 
 export const runtime = "nodejs";
 
-// POST /api/receipts  -> upload file + create DB row
 export async function POST(req: NextRequest) {
-  // 🔐 Require login
   const session = await getServerSession(authOptions);
-  const userId = session?.user?.email;
+
+  // ✅ use DB user id (matches User.id FK)
+  const userId = (session?.user as any)?.id as string | undefined;
 
   if (!userId) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -25,19 +22,14 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file");
 
     if (!file || !(file instanceof File)) {
-      return NextResponse.json(
-        { error: "No file uploaded" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // Upload to S3
     const { key, url } = await uploadReceiptToS3(file);
 
-    // Save in DB
     const receipt = await prisma.receipt.create({
       data: {
-        userId,
+        userId, // ✅ FK-safe now
         s3Key: key,
         s3Url: url,
         status: "uploaded",
@@ -45,38 +37,26 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      {
-        success: true,
-        receiptId: receipt.id,
-        s3Key: key,
-        s3Url: url,
-      },
+      { success: true, receiptId: receipt.id, s3Key: key, s3Url: url },
       { status: 200 }
     );
   } catch (err) {
     console.error("Upload error", err);
-    return NextResponse.json(
-      { error: "Upload failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }
 
-// GET /api/receipts -> list this user's receipts
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  const userId = session?.user?.email;
+  const userId = (session?.user as any)?.id as string | undefined;
 
   if (!userId) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const receipts = await prisma.receipt.findMany({
-      where: { userId },
+      where: { userId }, // ✅
       orderBy: { createdAt: "desc" },
       take: 50,
     });
@@ -84,9 +64,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ receipts }, { status: 200 });
   } catch (err) {
     console.error("List receipts error", err);
-    return NextResponse.json(
-      { error: "Failed to list receipts" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to list receipts" }, { status: 500 });
   }
 }

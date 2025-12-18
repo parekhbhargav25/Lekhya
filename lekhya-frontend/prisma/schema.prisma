@@ -12,16 +12,18 @@ model Receipt {
   userId           String
   s3Key            String
   s3Url            String
-  status           String   @default("uploaded") // uploaded | processing | parsed | error
+  status           String   @default("uploaded")
   extractedJson    Json?
-  categoryOverride String?  // <--- NEW FIELD
   createdAt        DateTime @default(now())
+  categoryOverride String?
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String?
-  passwordHash String
-  createdAt    DateTime @default(now())
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  createdAt DateTime  @default(now())
+  password  String?
+  receipts  Receipt[]
 }

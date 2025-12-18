@@ -1,26 +1,39 @@
-// app/api/auth/signup/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export const runtime = "nodejs";
 
-// Simple placeholder signup API.
-// You can later wire this to a real User table if you want.
 export async function POST(req: NextRequest) {
-  // We can read the body if you want to log it or validate later
-  const body = await req.json().catch(() => null);
-  console.log("Signup payload (ignored in this demo):", body);
+  try {
+    const body = await req.json().catch(() => null);
+    const email = String(body?.email || "").trim().toLowerCase();
+    const password = String(body?.password || "");
+    const name = String(body?.name || "").trim() || null;
 
-  // For now, just pretend signup succeeded.
-  return NextResponse.json(
-    { success: true, message: "Signup endpoint is a placeholder in this demo." },
-    { status: 200 }
-  );
-}
+    if (!email || !password) {
+      return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
+    }
+    if (password.length < 8) {
+      return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+    }
 
-// Disallow GET on this route just to be explicit
-export async function GET() {
-  return NextResponse.json(
-    { error: "Method not allowed" },
-    { status: 405 }
-  );
+    const exists = await prisma.user.findUnique({ where: { email } });
+    console.log("user email ",email)
+    if (exists) {
+      return NextResponse.json({ error: "Email is already registered" }, { status: 409 });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: { email, password: hashed, name },
+      select: { id: true, email: true, name: true },
+    });
+
+    return NextResponse.json({ success: true, user }, { status: 201 });
+  } catch (e: any) {
+    console.error("Sign-up error", e);
+    return NextResponse.json({ error: "Sign-up failed" }, { status: 500 });
+  }
 }

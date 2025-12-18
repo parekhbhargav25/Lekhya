@@ -1,8 +1,12 @@
 // app/signup/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { useSession } from "next-auth/react";
+
+
 
 export default function SignupPage() {
   const router = useRouter();
@@ -12,18 +16,31 @@ export default function SignupPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  const { status } = useSession();
+
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [status, router]);
+  
+  if (status === "loading") {
+    return (
+      <main className="min-h-screen flex items-center justify-center text-sm text-slate-500">
+        Checking session…
+      </main>
+    );
+  }
+
+
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
+    setLoading(true);
 
-    if (!email || !password) {
-      setError("Email and password are required.");
-      return;
-    }
-
-    setSubmitting(true);
     try {
       const res = await fetch("/api/auth/sign-up", {
         method: "POST",
@@ -32,19 +49,22 @@ export default function SignupPage() {
       });
 
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Sign up failed");
 
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to sign up");
-      }
+      // auto-login after signup
+      const login = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+      });
 
-      setSuccess("Account created! Redirecting to login…");
-      setTimeout(() => {
-        router.push("/login");
-      }, 1200);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+      if (login?.error) throw new Error("Account created, but login failed. Try logging in.");
+
+      router.push("/dashboard");
+    } catch (e: any) {
+      setError(e.message || "Something went wrong");
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   }
 
@@ -77,7 +97,7 @@ export default function SignupPage() {
             expenses for you.
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={onSubmit} className="space-y-4">
             {/* Name */}
             <div className="space-y-1">
               <label className="block text-xs font-medium text-slate-600">
