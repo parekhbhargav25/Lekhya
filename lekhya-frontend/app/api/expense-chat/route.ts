@@ -86,7 +86,7 @@ function tryAnswerMaxItemAtMerchant(
 export async function POST(req: NextRequest) {
   // 1) Auth
   const session = await getServerSession(authOptions);
-  const userId = session?.user?.email; // email as user id
+  const userId = (session?.user as any)?.id as string | undefined; // ✅ Prisma User.id
 
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
