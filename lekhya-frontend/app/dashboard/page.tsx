@@ -5,6 +5,7 @@ import { AnimatedNumber } from "../ui/AnimatedNumber";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { ChatbotWidget } from "./ChatbotWidget";
+import { UploadReceiptModal } from "../components/UploadReceiptModal";
 
 type ExtractedReceipt = {
   merchant: string;
@@ -49,6 +50,7 @@ export default function DashboardPage() {
   );
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewType, setPreviewType] = useState<"image" | "pdf" | "other" | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
   
   function openPreview(url: string) {
     const lower = url.toLowerCase();
@@ -275,7 +277,7 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-3 self-start sm:self-auto">
           <button
-            onClick={() => router.push("/receipts")}
+            onClick={() => setUploadOpen(true)}
             className="hidden sm:inline-flex items-center px-4 py-2 rounded-full 
                       bg-gradient-to-r from-[#7b61ff] to-[#a58fff] 
                       text-white text-sm font-semibold shadow-md"
@@ -623,6 +625,11 @@ export default function DashboardPage() {
               </div>
             )}
             < ChatbotWidget />
+            <UploadReceiptModal
+              open={uploadOpen}
+              onClose={() => setUploadOpen(false)}
+              onUploaded={() => userId && fetchReceipts(userId)}
+            />
     </main>
 
   );
