@@ -25,7 +25,7 @@ export default function HomePage() {
         <Sparkles />
       </div>
 
-      <div className="relative z-10">
+      <div className="relative z-10 pt-[76px]">
         <Navbar />
 
         {/* Hero + dashboard preview */}

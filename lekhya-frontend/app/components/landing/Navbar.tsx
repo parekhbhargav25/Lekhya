@@ -5,7 +5,7 @@ import { NavbarAuthButtons } from "../NavbarAuthButtons";
 
 export default function Navbar() {
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-gradient-to-b from-[#f3ecff]/95 to-[#f3ecff]/85 backdrop-blur">
+    <header className="fixed inset-x-0 top-0 z-30 border-b border-slate-200 bg-gradient-to-b from-[#f3ecff]/95 to-[#f3ecff]/85 backdrop-blur">
       <div className="w-full max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Image

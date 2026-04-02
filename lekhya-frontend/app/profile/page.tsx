@@ -166,18 +166,23 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#fcfaf8] px-4 py-10">
+    <main className="min-h-screen bg-gradient-to-b from-[#f6f0ff] via-[#fbf8ff] to-[#fffdf8] px-4 py-10">
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute left-10 top-20 h-56 w-56 rounded-full bg-white/50 blur-3xl" />
+        <div className="absolute right-10 top-16 h-72 w-72 rounded-full bg-[#ddd8ff]/60 blur-3xl" />
+        <div className="absolute bottom-10 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-[#ffe7f0]/40 blur-3xl" />
+      </div>
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex justify-end gap-3">
           <Link
             href="/dashboard"
-            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+            className="rounded-full border border-white/60 bg-white/55 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-md hover:bg-white/70"
           >
             Dashboard
           </Link>
           <button
             onClick={() => signOut({ callbackUrl: "/" })}
-            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+            className="rounded-full border border-white/60 bg-white/55 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-md hover:bg-white/70"
           >
             Logout
           </button>
@@ -189,7 +194,7 @@ export default function ProfilePage() {
           </div>
         )}
 
-        <section className="mx-auto max-w-3xl text-center">
+        <section className="mx-auto max-w-3xl rounded-[36px] border border-white/60 bg-white/45 px-6 py-10 text-center shadow-[0_18px_60px_rgba(121,104,255,0.12)] backdrop-blur-xl">
           <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-[#8a7bff] via-[#6f86ff] to-[#3ca9ff] text-4xl font-semibold text-white shadow-lg">
             {(profile?.email?.[0] ?? session?.user?.email?.[0] ?? "U").toUpperCase()}
           </div>
@@ -217,13 +222,13 @@ export default function ProfilePage() {
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/dashboard?upload=1"
-              className="rounded-full bg-[#ece9e4] px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-[#e4e0da]"
+              className="rounded-full border border-white/70 bg-white/70 px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm backdrop-blur-md transition hover:bg-white/85"
             >
               Upload receipt
             </Link>
             <Link
               href="/dashboard"
-              className="rounded-full bg-[#ece9e4] px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-[#e4e0da]"
+              className="rounded-full border border-white/70 bg-white/70 px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm backdrop-blur-md transition hover:bg-white/85"
             >
               Open dashboard
             </Link>
@@ -231,13 +236,13 @@ export default function ProfilePage() {
               type="button"
               onClick={deleteProfile}
               disabled={deleting}
-              className="rounded-full bg-[#f8dede] px-5 py-3 text-sm font-semibold text-red-700 transition hover:bg-[#f3caca] disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-full border border-red-100 bg-[#fff0f0]/80 px-5 py-3 text-sm font-semibold text-red-700 shadow-sm backdrop-blur-md transition hover:bg-[#ffe4e4] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {deleting ? "Deleting profile…" : "Delete profile"}
             </button>
           </div>
 
-          <div className="mt-12 flex items-center justify-center gap-10 border-b border-slate-200">
+          <div className="mt-12 flex items-center justify-center gap-10 rounded-full border border-white/60 bg-white/55 px-6 pt-4 backdrop-blur-md">
             <button
               type="button"
               onClick={() => setActiveTab("uploaded")}
@@ -265,7 +270,7 @@ export default function ProfilePage() {
 
         <section className="mt-12">
           {visibleReceipts.length === 0 ? (
-            <div className="mx-auto max-w-3xl rounded-[32px] border border-slate-200 bg-white px-8 py-16 text-center shadow-sm">
+            <div className="mx-auto max-w-3xl rounded-[32px] border border-white/60 bg-white/50 px-8 py-16 text-center shadow-[0_18px_60px_rgba(121,104,255,0.12)] backdrop-blur-xl">
               <p className="text-lg font-semibold text-slate-900">No receipts here yet</p>
               <p className="mt-2 text-sm text-slate-500">
                 Upload a receipt and it will appear on your profile.
@@ -286,14 +291,14 @@ export default function ProfilePage() {
                 return (
                   <article
                     key={receipt.id}
-                    className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    className="overflow-hidden rounded-[28px] border border-white/60 bg-white/55 shadow-[0_18px_45px_rgba(121,104,255,0.10)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/70 hover:shadow-[0_24px_55px_rgba(121,104,255,0.16)]"
                   >
                     <button
                       type="button"
                       onClick={() => openPreview(receipt.s3Url)}
                       className="block w-full text-left"
                     >
-                    <div className="aspect-[4/3] bg-[#f2efe9]">
+                    <div className="aspect-[4/3] bg-[#f2efe9]/80">
                       {isImage ? (
                         <img
                           src={receipt.s3Url}
@@ -363,7 +368,7 @@ export default function ProfilePage() {
       </div>
       {previewUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="relative max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-lg">
+            <div className="relative max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-white/60 bg-white/75 shadow-[0_24px_80px_rgba(15,23,42,0.25)] backdrop-blur-xl">
             <button
               type="button"
               onClick={closePreview}
