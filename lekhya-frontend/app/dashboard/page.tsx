@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { AnimatedNumber } from "../ui/AnimatedNumber";
 import { signOut, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChatbotWidget } from "./ChatbotWidget";
 import { UploadReceiptModal } from "../components/UploadReceiptModal";
 
@@ -45,6 +45,7 @@ type UploadLimitInfo = {
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const userId = session?.user?.email;
   
@@ -199,6 +200,14 @@ export default function DashboardPage() {
     fetchReceipts(userId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (searchParams.get("upload") !== "1") return;
+
+    setUploadOpen(true);
+    router.replace("/dashboard");
+  }, [router, searchParams, status]);
 
   // 🔹 early returns AFTER all hooks
   if (status === "loading") {
