@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+  DAILY_RECEIPT_UPLOAD_LIMIT,
+  getTodayReceiptUploadStats,
+} from "@/lib/receipt-upload-limit";
 import { uploadReceiptToS3 } from "@/lib/s3";
 
 export const runtime = "nodejs";
@@ -18,6 +22,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const uploadStats = await getTodayReceiptUploadStats(prisma, userId);
+    if (uploadStats.uploadedToday >= DAILY_RECEIPT_UPLOAD_LIMIT) {
+      return NextResponse.json(
+        {
+          error: `Daily upload limit reached. You can upload up to ${DAILY_RECEIPT_UPLOAD_LIMIT} receipts per day.`,
+          uploadLimit: uploadStats,
+        },
+        { status: 429 }
+      );
+    }
+
     const formData = await req.formData();
     const file = formData.get("file");
 
@@ -29,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     const receipt = await prisma.receipt.create({
       data: {
-        userId, // ✅ FK-safe now
+        userId,
         s3Key: key,
         s3Url: url,
         status: "uploaded",
@@ -37,7 +52,17 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      { success: true, receiptId: receipt.id, s3Key: key, s3Url: url },
+      {
+        success: true,
+        receiptId: receipt.id,
+        s3Key: key,
+        s3Url: url,
+        uploadLimit: {
+          ...uploadStats,
+          uploadedToday: uploadStats.uploadedToday + 1,
+          remainingToday: Math.max(0, uploadStats.remainingToday - 1),
+        },
+      },
       { status: 200 }
     );
   } catch (err) {
@@ -55,13 +80,15 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const uploadStats = await getTodayReceiptUploadStats(prisma, userId);
+
     const receipts = await prisma.receipt.findMany({
-      where: { userId }, // ✅
+      where: { userId },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
 
-    return NextResponse.json({ receipts }, { status: 200 });
+    return NextResponse.json({ receipts, uploadLimit: uploadStats }, { status: 200 });
   } catch (err) {
     console.error("List receipts error", err);
     return NextResponse.json({ error: "Failed to list receipts" }, { status: 500 });

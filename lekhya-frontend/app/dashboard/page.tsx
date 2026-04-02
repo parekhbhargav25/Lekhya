@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatedNumber } from "../ui/AnimatedNumber";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { ChatbotWidget } from "./ChatbotWidget";
 import { UploadReceiptModal } from "../components/UploadReceiptModal";
@@ -34,6 +34,14 @@ type ReceiptRow = {
   createdAt: string;
 };
 
+type UploadLimitInfo = {
+  uploadedToday: number;
+  remainingToday: number;
+  limit: number;
+  windowStart: string;
+  windowEnd: string;
+};
+
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -51,6 +59,7 @@ export default function DashboardPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewType, setPreviewType] = useState<"image" | "pdf" | "other" | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadLimit, setUploadLimit] = useState<UploadLimitInfo | null>(null);
   
   function openPreview(url: string) {
     const lower = url.toLowerCase();
@@ -118,8 +127,9 @@ export default function DashboardPage() {
         createdAt: r.createdAt,
         categoryOverride: r.categoryOverride ?? null,
       }));
-  
+
       setReceipts(mapped);
+      setUploadLimit(data.uploadLimit ?? null);
     } catch (err: any) {
       setError(err.message || "Error loading receipts");
     } finally {
@@ -239,6 +249,57 @@ export default function DashboardPage() {
     0
   );
 
+  const now = new Date();
+  const thisMonth = now.getMonth();
+  const thisYear = now.getFullYear();
+  const previousMonth = thisMonth === 0 ? 11 : thisMonth - 1;
+  const previousMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
+
+  const allParsedReceipts = receipts.filter(
+    (r) => r.extractedJson && typeof r.extractedJson.total === "number"
+  );
+
+  const thisMonthSpent = allParsedReceipts.reduce((sum, r) => {
+    const createdAt = new Date(r.createdAt);
+    const isThisMonth =
+      createdAt.getMonth() === thisMonth &&
+      createdAt.getFullYear() === thisYear;
+
+    return isThisMonth ? sum + (r.extractedJson?.total || 0) : sum;
+  }, 0);
+
+  const lastMonthSpent = allParsedReceipts.reduce((sum, r) => {
+    const createdAt = new Date(r.createdAt);
+    const isLastMonth =
+      createdAt.getMonth() === previousMonth &&
+      createdAt.getFullYear() === previousMonthYear;
+
+    return isLastMonth ? sum + (r.extractedJson?.total || 0) : sum;
+  }, 0);
+
+  const monthOverMonthChange =
+    lastMonthSpent > 0
+      ? ((thisMonthSpent - lastMonthSpent) / lastMonthSpent) * 100
+      : null;
+
+  const monthOverMonthLabel =
+    lastMonthSpent <= 0
+      ? thisMonthSpent > 0
+        ? "No receipts last month"
+        : "No monthly data yet"
+      : monthOverMonthChange !== null
+      ? `${monthOverMonthChange >= 0 ? "+" : ""}${monthOverMonthChange.toFixed(
+          1
+        )}% vs last month`
+      : "No monthly data yet";
+
+  const monthOverMonthTone =
+    monthOverMonthChange == null
+      ? "text-slate-500"
+      : monthOverMonthChange >= 0
+      ? "text-emerald-600"
+      : "text-red-600";
+
   // ----- Category breakdown (all categories) -----
   const categoryMap: Record<string, { total: number; count: number }> = {};
   for (const r of parsedReceipts) {
@@ -261,6 +322,14 @@ export default function DashboardPage() {
     )
     .slice(0, 5);
 
+  const uploadLimitTone = !uploadLimit
+    ? "border-slate-200 bg-white text-slate-700"
+    : uploadLimit.remainingToday === 0
+    ? "border-red-200 bg-red-50 text-red-700"
+    : uploadLimit.remainingToday <= 3
+    ? "border-amber-200 bg-amber-50 text-amber-800"
+    : "border-emerald-200 bg-emerald-50 text-emerald-800";
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#f6f0ff] to-[#fdf7ff] px-4 py-10">
       <div className="max-w-5xl mx-auto">
@@ -273,17 +342,40 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-600">
               Your AI-powered overview of monthly spending.
             </p>
+            {uploadLimit && (
+              <div
+                className={`mt-3 inline-flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-sm ${uploadLimitTone}`}
+              >
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">
+                    Daily Upload Limit
+                  </p>
+                  <p className="text-lg font-semibold leading-tight">
+                    {uploadLimit.remainingToday} left today
+                  </p>
+                  <p className="text-xs opacity-80">
+                    {uploadLimit.uploadedToday} of {uploadLimit.limit} used
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3 self-start sm:self-auto">
-          <button
-            onClick={() => setUploadOpen(true)}
-            className="hidden sm:inline-flex items-center px-4 py-2 rounded-full 
-                      bg-gradient-to-r from-[#7b61ff] to-[#a58fff] 
-                      text-white text-sm font-semibold shadow-md"
-          >
-            Upload receipt
-          </button>
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+            >
+              Logout
+            </button>
+            <button
+              onClick={() => setUploadOpen(true)}
+              className="hidden sm:inline-flex items-center px-4 py-2 rounded-full 
+                        bg-gradient-to-r from-[#7b61ff] to-[#a58fff] 
+                        text-white text-sm font-semibold shadow-md"
+            >
+              Upload receipt
+            </button>
             {/* Time range selector */}
             <select
               value={range}
@@ -328,11 +420,8 @@ export default function DashboardPage() {
               <p className="text-4xl sm:text-5xl font-semibold text-slate-900">
                 <AnimatedNumber value={totalSpent} prefix="$" />
               </p>
-              <p className="mt-1 text-xs text-emerald-600 font-medium">
-                +18.2% vs last month
-                {/* <span className="text-[11px] text-slate-400 font-normal ml-1">
-                  (placeholder)
-                </span> */}
+              <p className={`mt-1 text-xs font-medium ${monthOverMonthTone}`}>
+                {monthOverMonthLabel}
               </p>
             </div>
 
@@ -423,10 +512,16 @@ export default function DashboardPage() {
         {/* Full detailed list with actions & JSON */}
         {receipts.length > 0 && (
           <section className="mb-10">
-            <h2 className="text-sm font-semibold text-slate-900 mb-3">
-              All receipts
-            </h2>
-            <div className="space-y-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900">
+                All receipts
+              </h2>
+              <p className="text-xs text-slate-500">
+                Showing 5 at a time. Scroll for more.
+              </p>
+            </div>
+            <div className="max-h-[920px] overflow-y-auto rounded-[32px] pr-2">
+              <div className="space-y-4">
               {receipts.map((r) => {
                 const parsed = r.extractedJson;
                 const created = new Date(r.createdAt);
@@ -573,6 +668,7 @@ export default function DashboardPage() {
                   </div>
                 );
               })}
+              </div>
             </div>
           </section>
         )}
@@ -624,11 +720,17 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
-            < ChatbotWidget />
+            <ChatbotWidget />
             <UploadReceiptModal
               open={uploadOpen}
               onClose={() => setUploadOpen(false)}
-              onUploaded={() => userId && fetchReceipts(userId)}
+              onUploaded={() => {
+                if (userId) {
+                  fetchReceipts(userId);
+                }
+              }}
+              uploadsRemainingToday={uploadLimit?.remainingToday}
+              dailyUploadLimit={uploadLimit?.limit}
             />
     </main>
 

@@ -5,15 +5,32 @@ import { useRef, useState } from "react";
 type Props = {
   open: boolean;
   onClose: () => void;
-  onUploaded?: () => void; // call this to refresh dashboard receipts
+  onUploaded?: () => void | Promise<void>; // call this to refresh dashboard receipts
+  uploadsRemainingToday?: number;
+  dailyUploadLimit?: number;
 };
 
-export function UploadReceiptModal({ open, onClose, onUploaded }: Props) {
+export function UploadReceiptModal({
+  open,
+  onClose,
+  onUploaded,
+  uploadsRemainingToday,
+  dailyUploadLimit = 10,
+}: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const limitReached = uploadsRemainingToday === 0;
+  const limitTone =
+    uploadsRemainingToday == null
+      ? "border-slate-200 bg-slate-50 text-slate-700"
+      : uploadsRemainingToday === 0
+      ? "border-red-200 bg-red-50 text-red-700"
+      : uploadsRemainingToday <= 3
+      ? "border-amber-200 bg-amber-50 text-amber-800"
+      : "border-emerald-200 bg-emerald-50 text-emerald-800";
 
   if (!open) return null;
 
@@ -28,12 +45,17 @@ export function UploadReceiptModal({ open, onClose, onUploaded }: Props) {
 
   async function upload() {
     if (!file || uploading) return;
+    if (limitReached) {
+      setErr(`Daily upload limit reached. You can upload up to ${dailyUploadLimit} receipts per day.`);
+      return;
+    }
     setUploading(true);
     setErr(null);
 
     try {
       const fd = new FormData();
       fd.append("file", file);
+      let uploadedReceiptId: string | null = null;
 
       const res = await fetch("/api/receipts", {
         method: "POST",
@@ -43,9 +65,28 @@ export function UploadReceiptModal({ open, onClose, onUploaded }: Props) {
 
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Upload failed");
+      uploadedReceiptId = data?.receiptId ?? null;
 
-      // success
-      onUploaded?.();
+      if (!uploadedReceiptId) {
+        throw new Error("Receipt uploaded, but no receipt id was returned.");
+      }
+
+      const extractRes = await fetch(`/api/receipts/${uploadedReceiptId}/extract`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const extractData = await extractRes.json().catch(() => null);
+      if (!extractRes.ok) {
+        await onUploaded?.();
+        setFile(null);
+        throw new Error(
+          extractData?.error ||
+            "Receipt uploaded, but AI extraction failed. You can retry from the dashboard."
+        );
+      }
+
+      await onUploaded?.();
       setFile(null);
       onClose();
     } catch (e: any) {
@@ -67,6 +108,21 @@ export function UploadReceiptModal({ open, onClose, onUploaded }: Props) {
             <p className="text-xs text-slate-500 mt-1">
               For best results, upload a clear image (PNG/JPG) or a PDF.
             </p>
+            <div className={`mt-3 rounded-2xl border px-3 py-2 ${limitTone}`}>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">
+                Daily Upload Limit
+              </p>
+              <p className="text-base font-semibold leading-tight">
+                {uploadsRemainingToday != null
+                  ? `${uploadsRemainingToday} left today`
+                  : `${dailyUploadLimit} uploads per day`}
+              </p>
+              {uploadsRemainingToday != null && (
+                <p className="text-xs opacity-80">
+                  {dailyUploadLimit - uploadsRemainingToday} of {dailyUploadLimit} used
+                </p>
+              )}
+            </div>
           </div>
 
           <button
@@ -115,6 +171,7 @@ export function UploadReceiptModal({ open, onClose, onUploaded }: Props) {
               <button
                 type="button"
                 onClick={pickFile}
+                disabled={limitReached}
                 className="inline-flex items-center justify-center rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-100"
               >
                 Select file
@@ -156,10 +213,10 @@ export function UploadReceiptModal({ open, onClose, onUploaded }: Props) {
             <button
               type="button"
               onClick={upload}
-              disabled={!file || uploading}
+              disabled={!file || uploading || limitReached}
               className="px-6 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {uploading ? "Uploading…" : "Add"}
+              {uploading ? "Uploading & analyzing…" : "Add"}
             </button>
           </div>
         </div>

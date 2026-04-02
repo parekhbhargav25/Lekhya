@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<!-- saved from url=(0296)https://shared.officeapps.live.com/clipboard/shared.aspx?CreatorOrigin=https%3A%2F%2Fexcel.officeapps.live.com&usid=b88d7117-dfc9-b5ed-0a5c-c23dd8eeb767&BulsEndpointUrl=https%3A%2F%2Fexcel-telemetry.officeapps.live.com%2Fxt%2FRemoteUls.ashx&corrid=bb0ae43b-2937-4ae0-b2e9-6ec2b74e44c1&NoAuth=true -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><title>
+	Shared Clipboard iframe content
+</title>
+  <script type="text/javascript">
+
+var sharedClipboardSettings = {
+ whitelistOriginComponents: 1,
+ staticContentURLPrefix: "https://res.public.onecdn.static.microsoft:443/officeonline/clipboard/s/161962242308_App_Scripts/",
+ is1CDNEnabled: "True",
+ sharedClipboardExpirationInMinutes: 3600,
+ clipboardPromiseTimeoutInMinutes: 2,
+ sharedClipboardSchemaVersion: 2,
+ remoteLoggerPath: "/x/RemoteUls.ashx",
+
+ sharedClipboardHostingApp: "shared",
+ sharedClipboardHostingApps: "[\"broadcast\", \"excel\", \"onenote\", \"powerpoint\", \"view\", \"visio\", \"word-edit\", \"word-view\", \"shared\"]",
+ sharedClipboardHostingEnvironments: "[\"officeapps.live.com\", \"officeapps-df.live.com\", \"online.office.de\", \"gov.online.office365.us\", \"dod.online.office365.us\", \"partner.officewebapps.cn\"]"
+
+};
+
+var sharedClipboardScriptFileName = 'sharedclipboard.min.js';
+
+function loadScript(fileName) {
+  var scriptElement = document.createElement('script');
+  scriptElement.setAttribute('src', getScriptSrc(fileName));
+  scriptElement.setAttribute('type', 'text/javascript');
+  scriptElement.setAttribute('async', 'false');
+  scriptElement.setAttribute('defer', 'defer');
+  if (sharedClipboardSettings.is1CDNEnabled === "True") {
+    scriptElement.setAttribute('crossorigin', 'anonymous');
+  }
+  var body = document.getElementsByTagName('body')[0];
+  body.appendChild(scriptElement);
+}
+
+function getScriptSrc(fileName) {
+  var prefix = sharedClipboardSettings.staticContentURLPrefix;
+  if (!prefix) {
+    return fileName;
+  }
+
+  var queryMark = prefix.indexOf('?');
+  if (queryMark < 0) {
+    return prefix + fileName;
+  }
+
+  var postfix = prefix.substr(queryMark);
+  prefix = prefix.substr(0, queryMark);
+  return prefix + fileName + postfix;
+}
+  </script>
+ </head>
+
+<body onload="window.sharedClipboard.initialize();">
+  <script>
+    loadScript(sharedClipboardScriptFileName);
+  </script><script src="./sharedclipboard.min.js" type="text/javascript" async="false" defer="defer" crossorigin="anonymous"></script>
+
+
+
+
+</body></html>
