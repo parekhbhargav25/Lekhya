@@ -4,7 +4,6 @@ import Hero from "./components/landing/Hero";
 import DashboardPreview from "./components/landing/DashboardPreview";
 import WhyLekhya from "./components/landing/WhyLekhya";
 import HowItWorks from "./components/landing/HowItWorks";
-import UseCases from "./components/landing/UseCases";
 import Features from "./components/landing/Features";
 import TestimonialsFAQ from "./components/landing/TestimonialsFAQ";
 import Footer from "./components/landing/Footer";
@@ -42,7 +41,6 @@ export default function HomePage() {
 
         <WhyLekhya />
         <HowItWorks />
-        <UseCases />
         <Features />
         <TestimonialsFAQ />
         <Footer />
