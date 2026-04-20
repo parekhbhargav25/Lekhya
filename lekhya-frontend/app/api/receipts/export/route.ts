@@ -3,6 +3,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+
+type ExtractedReceipt = {
+  merchant: string;
+  date: string; // YYYY-MM-DD
+  total: number;
+  tax?: number | null;
+  currency?: string | null;
+  category?: string | null;
+  paymentMethod?: string | null;
+  lineItems?: {
+    description: string;
+    qty?: number | null;
+    price?: number | null;
+  }[];
+  notes?: string | null;
+};
 
 export const runtime = "nodejs";
 
@@ -15,7 +32,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const receipts = await prisma.receipt.findMany({
+    const receipts: Prisma.ReceiptGetPayload<{}>[] = await prisma.receipt.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
     });
@@ -35,13 +52,13 @@ export async function GET(req: NextRequest) {
       "Created At"
     ];
 
-    const csvRows = receipts.map((receipt) => {
-      const extracted = receipt.extractedJson as any;
+    const csvRows = receipts.map((receipt: Prisma.ReceiptGetPayload<{}>) => {
+      const extracted = receipt.extractedJson as ExtractedReceipt | null;
       const category = receipt.categoryOverride || extracted?.category || "Uncategorized";
 
       // Format line items as a string
       const lineItems = extracted?.lineItems
-        ? extracted.lineItems.map((item: any) =>
+        ? extracted.lineItems.map((item) =>
             `${item.description || ""} (Qty: ${item.qty || 1}, Price: $${item.price?.toFixed(2) || "0.00"})`
           ).join("; ")
         : "";
