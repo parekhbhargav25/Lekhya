@@ -385,6 +385,34 @@ export default function DashboardPage() {
             >
               Upload receipt
             </button>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/receipts/export", {
+                    method: "GET",
+                    credentials: "include",
+                  });
+                  if (!res.ok) throw new Error("Export failed");
+
+                  const blob = await res.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `expenses-${new Date().toISOString().split('T')[0]}.csv`;
+                  document.body.appendChild(a);
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                  document.body.removeChild(a);
+                } catch (err) {
+                  console.error(err);
+                  alert("Failed to download expenses spreadsheet");
+                }
+              }}
+              className="inline-flex items-center px-4 py-2 rounded-full 
+                        border border-slate-200 bg-white text-slate-700 text-sm font-semibold shadow-sm hover:bg-slate-50"
+            >
+              📊 Download CSV
+            </button>
             {/* Time range selector */}
             <select
               value={range}
