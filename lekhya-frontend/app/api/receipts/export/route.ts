@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
 
     const csvContent = [
       csvHeaders.join(","),
-      ...csvRows.map(row => row.map(field => `"${field}"`).join(","))
+      ...csvRows.map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(","))
     ].join("\n");
 
     // Return CSV file

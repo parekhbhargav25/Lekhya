@@ -173,19 +173,39 @@ export default function ProfilePage() {
         <div className="absolute bottom-10 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-[#ffe7f0]/40 blur-3xl" />
       </div>
       <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex justify-end gap-3">
+        <div className="mb-6 flex items-center justify-between gap-3">
           <Link
             href="/dashboard"
-            className="rounded-full border border-white/60 bg-white/55 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-md hover:bg-white/70"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-violet-700 transition-colors"
           >
-            Dashboard
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-3.5 w-3.5"
+            >
+              <path d="M19 12H5" />
+              <path d="M12 19l-7-7 7-7" />
+            </svg>
+            Back to dashboard
           </Link>
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="rounded-full border border-white/60 bg-white/55 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-md hover:bg-white/70"
-          >
-            Logout
-          </button>
+          <div className="flex gap-3">
+            <Link
+              href="/dashboard"
+              className="rounded-full border border-white/60 bg-white/55 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-md hover:bg-white/70"
+            >
+              Dashboard
+            </Link>
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="rounded-full border border-white/60 bg-white/55 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-md hover:bg-white/70"
+            >
+              Logout
+            </button>
+          </div>
         </div>
 
         {error && (
