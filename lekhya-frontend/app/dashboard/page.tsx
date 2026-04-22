@@ -6,7 +6,9 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChatbotWidget } from "./ChatbotWidget";
-import { WeeklyTrendChart } from "./WeeklyTrendChart";
+import { GmailSyncCard } from "./GmailSyncCard";
+import { FinanceInsightsChart } from "./FinanceInsightsChart";
+import { ExpenseOverviewDonut } from "./ExpenseOverviewDonut";
 import { UploadReceiptModal } from "../components/UploadReceiptModal";
 
 type ExtractedReceipt = {
@@ -382,19 +384,6 @@ export default function DashboardPage() {
       ? "text-emerald-600"
       : "text-red-600";
 
-  // ----- Category breakdown (all categories) -----
-  const categoryMap: Record<string, { total: number; count: number }> = {};
-  for (const r of parsedReceipts) {
-    const cat = getCategory(r);
-    if (!categoryMap[cat]) categoryMap[cat] = { total: 0, count: 0 };
-    categoryMap[cat].total += r.extractedJson?.total || 0;
-    categoryMap[cat].count += 1;
-  }
-
-  const categoryEntries = Object.entries(categoryMap).sort(
-    (a, b) => b[1].total - a[1].total
-  );
-
   // ----- Recent receipts (latest first) -----
   const recentReceipts = [...parsedReceipts]
     .sort(
@@ -588,6 +577,16 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Gmail integration */}
+        <GmailSyncCard
+          onSynced={() => {
+            if (userId) {
+              fetchReceipts(userId);
+              fetchRecurring();
+            }
+          }}
+        />
+
         {/* MAIN CARD */}
         <section className="mb-8 rounded-3xl bg-white shadow-sm border border-violet-100 overflow-hidden">
           {/* Hero: this-month total */}
@@ -609,50 +608,12 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Category breakdown */}
-          <div className="px-6 py-6 sm:px-10">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                By category
-              </p>
-              {categoryEntries.length > 0 && (
-                <p className="text-[11px] text-slate-400">
-                  {categoryEntries.length}{" "}
-                  {categoryEntries.length === 1 ? "category" : "categories"}
-                </p>
-              )}
-            </div>
-            {categoryEntries.length === 0 ? (
-              <p className="text-xs text-slate-500">
-                No parsed receipts yet. Run AI extraction to see category
-                breakdowns.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {categoryEntries.map(([category, { total, count }]) => (
-                  <div
-                    key={category}
-                    className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 hover:bg-slate-100/60 transition-colors"
-                  >
-                    <p className="text-xs font-medium text-slate-500 mb-1">
-                      {category}
-                    </p>
-                    <p className="text-lg font-semibold text-slate-900">
-                      ${total.toFixed(2)}
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-slate-400">
-                      {count} {count === 1 ? "receipt" : "receipts"}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        </section>
 
-          {/* Weekly trend */}
-          <div className="px-6 pb-6 sm:px-10">
-            <WeeklyTrendChart receipts={receipts} range={range} />
-          </div>
+        {/* Insights + category breakdown */}
+        <section className="mb-8 grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-5">
+          <FinanceInsightsChart receipts={receipts} />
+          <ExpenseOverviewDonut receipts={receipts} />
         </section>
 
         {/* Recurring expenses */}

@@ -4,9 +4,10 @@
 import { FormEvent, useEffect, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import googleimg from "@/public/google.png"
+import Link from "next/link";
 import Image from "next/image";
-
+import googleimg from "@/public/google.png";
+import { AuthHeroPanel } from "../components/AuthHeroPanel";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,11 +15,11 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Redirect if already signed in
   useEffect(() => {
     if (status === "authenticated") {
       router.replace("/dashboard");
@@ -59,128 +60,158 @@ export default function LoginPage() {
   async function handleGoogle() {
     setError(null);
     setSubmitting(true);
-    // redirect flow handled by NextAuth
     await signIn("google", { callbackUrl: "/dashboard" });
     setSubmitting(false);
   }
 
   return (
-    <main
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{
-        backgroundImage: "url('/auth-bg.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
-      {/* Soft overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/40 to-white/10 pointer-events-none" />
+    <main className="min-h-screen bg-[#1a1512]">
+      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[1fr_1.1fr]">
+        {/* Left: dark hero */}
+        <AuthHeroPanel />
 
-      <div className="relative w-full max-w-md">
-        <div className="rounded-[32px] bg-white/30 border border-white/50 shadow-[0_24px_60px_rgba(15,23,42,0.25)] backdrop-blur-2xl px-8 py-8 sm:px-10 sm:py-10">
-          {/* Top icon circle */}
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-white/70 shadow-md flex items-center justify-center mb-6">
-            <span className="text-xl">🔑</span>
+        {/* Right: white form panel */}
+        <div className="relative flex flex-col bg-white lg:rounded-l-[40px]">
+          {/* Top bar */}
+          <div className="flex items-center justify-between px-6 sm:px-10 lg:px-14 pt-8">
+            <Link href="/" className="flex items-center gap-2">
+              <span className="relative inline-flex h-7 w-7 items-center justify-center">
+                <span className="absolute inset-0 rounded-full bg-gradient-to-tr from-violet-500 via-fuchsia-400 to-amber-300" />
+                <span className="relative h-3.5 w-3.5 rounded-full bg-white" />
+              </span>
+              <span className="text-xl font-semibold tracking-tight text-slate-900">
+                Lekhya
+              </span>
+            </Link>
+
+            <Link
+              href="/sign-up"
+              className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900"
+            >
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                  <path d="M17 8l4 2-4 2" />
+                </svg>
+              </span>
+              Sign Up
+            </Link>
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 text-center mb-1">
-            Log in to Lekhya
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-600 text-center mb-8">
-            Welcome back — sign in to view your dashboard and receipts.
-          </p>
+          {/* Form */}
+          <div className="flex flex-1 items-center px-6 sm:px-10 lg:px-14">
+            <div className="w-full max-w-md">
+              <h1 className="text-5xl sm:text-6xl font-semibold tracking-tight text-slate-900 mb-10">
+                Sign In
+              </h1>
 
-          {/* Google sign-in (optional, since you added GoogleProvider) */}
-          <button
-            type="button"
-            onClick={handleGoogle}
-            disabled={submitting}
-            className="w-full flex items-center justify-center gap-3 rounded-full
-                      bg-white/70 border border-white/70 px-4 py-3
-                      text-sm font-semibold text-slate-900 shadow-sm
-                      hover:bg-white/80 transition
-                      disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <Image
-              src={googleimg}
-              alt="Google"
-              width={50}
-              height={50}
-              className="object-contain"
-            />
-            <span>Continue with Google</span>
-          </button>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="rounded-2xl border border-slate-200 px-5 py-3.5 focus-within:border-slate-400 transition">
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    placeholder="Email or Username"
+                    className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                  />
+                </div>
 
-          <div className="my-5 flex items-center gap-3">
-            <div className="h-px flex-1 bg-white/60" />
-            <span className="text-[11px] text-slate-600">or</span>
-            <div className="h-px flex-1 bg-white/60" />
+                <div className="rounded-2xl border border-slate-200 px-5 py-3.5 focus-within:border-slate-400 transition">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      placeholder="Password"
+                      className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      className="shrink-0 text-slate-400 hover:text-slate-600"
+                    >
+                      {showPassword ? (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                          <path d="m1 1 22 22" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-violet-600 hover:text-violet-700"
+                >
+                  Forgot password?
+                </button>
+
+                {error && (
+                  <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#7b61ff] via-[#8b5cf6] to-[#c084fc] py-4 text-sm font-semibold text-white shadow-[0_14px_40px_rgba(139,92,246,0.35)] hover:shadow-[0_18px_48px_rgba(139,92,246,0.5)] transition disabled:opacity-60"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                    <path d="M10 17l5-5-5-5" />
+                    <path d="M15 12H3" />
+                  </svg>
+                  {submitting ? "Signing in…" : "Sign In"}
+                </button>
+              </form>
+
+              <div className="my-5 flex items-center gap-3">
+                <div className="h-px flex-1 bg-slate-200" />
+                <span className="text-[11px] text-slate-400">or</span>
+                <div className="h-px flex-1 bg-slate-200" />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogle}
+                disabled={submitting}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 transition disabled:opacity-60"
+              >
+                <Image src={googleimg} alt="Google" width={18} height={18} className="object-contain" />
+                Continue with Google
+              </button>
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-600">
-                Email
-              </label>
-              <div className="flex items-center gap-2 rounded-2xl bg-white/60 border border-white/70 px-3 py-2.5 shadow-sm">
-                <span className="text-slate-400 text-sm">✉️</span>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                />
-              </div>
+          {/* Footer */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-6 sm:px-10 lg:px-14 pb-8 pt-6 text-xs text-slate-500">
+            <span>© 2025 Lekhya Inc.</span>
+            <div className="flex items-center gap-5">
+              <Link href="/" className="hover:text-slate-700">
+                Contact Us
+              </Link>
+              <span className="inline-flex items-center gap-1">
+                English
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </span>
             </div>
-
-            {/* Password */}
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-600">
-                Password
-              </label>
-              <div className="flex items-center gap-2 rounded-2xl bg-white/60 border border-white/70 px-3 py-2.5 shadow-sm">
-                <span className="text-slate-400 text-sm">🔒</span>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                  placeholder="Your password"
-                  autoComplete="current-password"
-                />
-              </div>
-            </div>
-
-            {error && (
-              <p className="text-xs text-red-600 bg-red-50/90 border border-red-100 rounded-2xl px-3 py-2">
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="mt-2 w-full px-4 py-2.5 rounded-full bg-slate-900 text-white text-sm font-semibold shadow-[0_14px_40px_rgba(15,23,42,0.45)] hover:bg-slate-950 transition disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {submitting ? "Signing in…" : "Log in"}
-            </button>
-          </form>
-
-          <p className="mt-5 text-[11px] sm:text-xs text-slate-600 text-center">
-            Don&apos;t have an account?{" "}
-            <button
-              type="button"
-              onClick={() => router.push("/sign-up")}
-              className="text-violet-700 font-medium hover:underline"
-            >
-              Sign up
-            </button>
-          </p>
+          </div>
         </div>
       </div>
     </main>

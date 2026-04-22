@@ -31,6 +31,14 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope:
+            "openid email profile https://www.googleapis.com/auth/gmail.readonly",
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
     }),
   ],
 
@@ -39,9 +47,9 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, account }) {
       if (user?.email) {
-        await prisma.user.upsert({
+        const dbUser = await prisma.user.upsert({
           where: { email: user.email.toLowerCase() },
           update: { name: user.name ?? undefined },
           create: {
@@ -50,6 +58,32 @@ export const authOptions: NextAuthOptions = {
             // password stays null for Google users
           },
         });
+
+        if (account?.provider === "google" && account.access_token) {
+          const expiresAt =
+            typeof account.expires_at === "number"
+              ? new Date(account.expires_at * 1000)
+              : null;
+
+          await prisma.googleAccount.upsert({
+            where: { userId: dbUser.id },
+            update: {
+              providerAccountId: account.providerAccountId,
+              accessToken: account.access_token,
+              refreshToken: account.refresh_token ?? undefined,
+              expiresAt,
+              scope: (account.scope as string | undefined) ?? null,
+            },
+            create: {
+              userId: dbUser.id,
+              providerAccountId: account.providerAccountId,
+              accessToken: account.access_token,
+              refreshToken: (account.refresh_token as string | undefined) ?? null,
+              expiresAt,
+              scope: (account.scope as string | undefined) ?? null,
+            },
+          });
+        }
       }
       return true;
     },

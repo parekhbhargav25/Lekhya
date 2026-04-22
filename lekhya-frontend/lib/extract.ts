@@ -130,3 +130,76 @@ The fields you must return:
 
   return parsed;
 }
+
+// 🚀 Extract receipt data from an email (subject + from + body text)
+export async function extractReceiptFromEmailLLM(params: {
+  subject: string;
+  from: string;
+  date: string;
+  body: string;
+}): Promise<ExtractedReceipt> {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("Missing OPENAI_API_KEY environment variable");
+  }
+
+  const { subject, from, date, body } = params;
+
+  const systemPrompt = `
+You extract structured expense data from email receipts/order confirmations.
+
+Rules:
+- Return ONLY valid JSON (no markdown, no extra text).
+- If a field is not present in the email, use null.
+- Prefer the order/charge total (not subtotal) for "total".
+- "date" is the purchase/order date from the email if present, otherwise use the email Date header.
+- "merchant" is the company/store name (e.g., "Amazon", "Uber", "Starbucks"), not the sender email.
+- "category" should be a short label (e.g. "Shopping", "Dining", "Transport", "Groceries").
+- If the email is clearly NOT a purchase receipt (e.g. promotional, newsletter, account alert, shipping notification with no price), return total=null and merchant=null. The caller will discard.
+`;
+
+  const userText = `
+Email metadata:
+- From: ${from}
+- Subject: ${subject}
+- Date: ${date}
+
+Email body (plain text):
+"""
+${body.slice(0, 8000)}
+"""
+
+Return JSON with this shape:
+{
+  "merchant": string | null,
+  "date": string | null,
+  "total": number | null,
+  "tax": number | null,
+  "currency": string | null,
+  "category": string | null,
+  "paymentMethod": string | null,
+  "lineItems": [
+    { "description": string, "qty": number | null, "price": number | null }
+  ],
+  "notes": string | null
+}
+`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userText },
+    ],
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) throw new Error("OpenAI returned empty content.");
+
+  try {
+    return JSON.parse(content) as ExtractedReceipt;
+  } catch (err) {
+    console.error("Failed to parse AI JSON (email):", content);
+    throw new Error("Failed to parse AI JSON");
+  }
+}
