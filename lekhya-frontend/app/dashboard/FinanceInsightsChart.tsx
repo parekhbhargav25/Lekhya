@@ -208,7 +208,7 @@ export function FinanceInsightsChart({
             <path
               d={linePath}
               fill="none"
-              stroke="#7c3aed"
+              stroke="#5aa25a"
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"

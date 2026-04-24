@@ -20,14 +20,27 @@ export default function LoginPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(true);
 
   useEffect(() => {
     if (status === "authenticated") {
       router.replace("/dashboard");
     }
+
+    if (status === "unauthenticated") {
+      setShowLoadingScreen(false);
+    }
   }, [status, router]);
 
-  if (status === "loading") {
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setShowLoadingScreen(false);
+    }, 1200);
+
+    return () => clearTimeout(timeout);
+  }, []);
+
+  if (status === "loading" && showLoadingScreen) {
     return (
       <main className="min-h-screen flex items-center justify-center text-sm text-slate-500">
         Checking session…
