@@ -24,6 +24,10 @@ export const authOptions: NextAuthOptions = {
         const ok = await bcrypt.compare(password, user.password);
         if (!ok) return null;
 
+        if (!user.emailVerifiedAt) {
+          throw new Error("EMAIL_NOT_VERIFIED");
+        }
+
         return { id: user.id, email: user.email, name: user.name ?? null };
       },
     }),
@@ -51,10 +55,15 @@ export const authOptions: NextAuthOptions = {
       if (user?.email) {
         const dbUser = await prisma.user.upsert({
           where: { email: user.email.toLowerCase() },
-          update: { name: user.name ?? undefined },
+          update: {
+            name: user.name ?? undefined,
+            emailVerifiedAt:
+              account?.provider === "google" ? new Date() : undefined,
+          },
           create: {
             email: user.email.toLowerCase(),
             name: user.name ?? null,
+            emailVerifiedAt: account?.provider === "google" ? new Date() : null,
             // password stays null for Google users
           },
         });

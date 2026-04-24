@@ -1,5 +1,7 @@
 "use client";
 
+import { motion } from "framer-motion";
+
 export function AuthHeroPanel() {
   return (
     <div className="relative hidden lg:flex flex-col overflow-hidden bg-[#1a1512] text-white">
@@ -33,7 +35,41 @@ export function AuthHeroPanel() {
       {/* Mock device card at bottom */}
       <div className="relative z-10 mt-auto flex items-end justify-center pb-12">
         <div className="relative">
-          <div className="absolute -inset-4 rounded-[44px] bg-gradient-to-br from-violet-500/20 via-amber-300/10 to-transparent blur-xl" />
+          {/* Animated gradient aura behind the card */}
+          <motion.div
+            aria-hidden
+            className="absolute -inset-10 rounded-[60px] blur-3xl"
+            animate={{
+              background: [
+                "radial-gradient(60% 60% at 30% 30%, rgba(139,92,246,0.45) 0%, rgba(251,191,36,0.15) 45%, rgba(0,0,0,0) 75%)",
+                "radial-gradient(60% 60% at 70% 40%, rgba(236,72,153,0.4) 0%, rgba(139,92,246,0.2) 45%, rgba(0,0,0,0) 75%)",
+                "radial-gradient(60% 60% at 50% 70%, rgba(251,191,36,0.4) 0%, rgba(236,72,153,0.2) 45%, rgba(0,0,0,0) 75%)",
+                "radial-gradient(60% 60% at 30% 30%, rgba(139,92,246,0.45) 0%, rgba(251,191,36,0.15) 45%, rgba(0,0,0,0) 75%)",
+              ],
+            }}
+            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+          />
+
+          {/* Three breathing circles behind the card — continuous in/out pulse */}
+          <motion.div
+            aria-hidden
+            className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/30 blur-3xl"
+            animate={{ scale: [0.7, 1.3, 0.7], opacity: [0.5, 0.9, 0.5] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div
+            aria-hidden
+            className="absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-300/25 blur-3xl"
+            animate={{ scale: [1.2, 0.75, 1.2], opacity: [0.6, 1, 0.6] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
+          />
+          <motion.div
+            aria-hidden
+            className="absolute left-1/2 top-1/2 h-60 w-60 -translate-x-1/2 -translate-y-1/2 rounded-full bg-fuchsia-500/25 blur-3xl"
+            animate={{ scale: [0.8, 1.35, 0.8], opacity: [0.55, 0.95, 0.55] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
+          />
+
           <div className="relative w-[260px] rounded-[40px] border border-white/10 bg-gradient-to-b from-[#2a2320] to-[#15100d] p-3 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.8)]">
             {/* Notch */}
             <div className="mx-auto mb-2 h-1.5 w-16 rounded-full bg-white/10" />
@@ -49,7 +85,7 @@ export function AuthHeroPanel() {
                 {[30, 55, 40, 70, 85, 60, 45].map((h, i) => (
                   <div
                     key={i}
-                    className="flex-1 rounded-sm bg-gradient-to-t from-violet-500/40 to-violet-300"
+                    className="flex-1 rounded-sm bg-gradient-to-t from-green-500/40 to-green-300"
                     style={{ height: `${h}%` }}
                   />
                 ))}

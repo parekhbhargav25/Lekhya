@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
+import { AnimatePresence, motion } from "framer-motion";
 import googleimg from "@/public/google.png";
 import { AuthHeroPanel } from "../components/AuthHeroPanel";
+import { EmailVerification } from "../components/EmailVerification";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -20,6 +22,7 @@ export default function SignupPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -50,21 +53,26 @@ export default function SignupPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Sign up failed");
 
-      const login = await signIn("credentials", {
-        redirect: false,
-        email,
-        password,
-      });
-
-      if (login?.error)
-        throw new Error("Account created, but login failed. Try logging in.");
-
-      router.push("/dashboard");
+      setPendingEmail(data.email || email.trim().toLowerCase());
     } catch (e: any) {
       setError(e.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleVerified() {
+    const login = await signIn("credentials", {
+      redirect: false,
+      email: pendingEmail || email,
+      password,
+    });
+    if (login?.error) {
+      setError("Verified, but login failed. Try signing in.");
+      setPendingEmail(null);
+      return;
+    }
+    router.push("/dashboard");
   }
 
   async function handleGoogle() {
@@ -107,15 +115,31 @@ export default function SignupPage() {
           </div>
 
           <div className="flex flex-1 items-center px-6 sm:px-10 lg:px-14 py-6">
-            <div className="w-full max-w-md">
-              <h1 className="text-5xl sm:text-6xl font-semibold tracking-tight text-slate-900 mb-2">
-                Sign Up
-              </h1>
-              <p className="text-sm text-slate-500 mb-8">
-                Let AI organize all your receipts &amp; expenses
-              </p>
+            <AnimatePresence mode="wait">
+              {pendingEmail ? (
+                <EmailVerification
+                  key="verify"
+                  email={pendingEmail}
+                  onVerified={handleVerified}
+                  onBack={() => setPendingEmail(null)}
+                />
+              ) : (
+                <motion.div
+                  key="form"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="w-full max-w-md"
+                >
+                  <h1 className="text-5xl sm:text-6xl font-semibold tracking-tight text-slate-900 mb-2">
+                    Sign Up
+                  </h1>
+                  <p className="text-sm text-slate-500 mb-8">
+                    Let AI organize all your receipts &amp; expenses
+                  </p>
 
-              <form onSubmit={onSubmit} className="space-y-4">
+                  <form onSubmit={onSubmit} className="space-y-4">
                 <div className="rounded-2xl border border-slate-200 px-5 py-3.5 focus-within:border-slate-400 transition">
                   <input
                     type="text"
@@ -176,16 +200,31 @@ export default function SignupPage() {
                   </p>
                 )}
 
-                <button
+                <motion.button
                   type="submit"
                   disabled={loading}
-                  className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#7b61ff] via-[#8b5cf6] to-[#c084fc] py-4 text-sm font-semibold text-white shadow-[0_14px_40px_rgba(139,92,246,0.35)] hover:shadow-[0_18px_48px_rgba(139,92,246,0.5)] transition disabled:opacity-60"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2, duration: 0.4, ease: "easeOut" }}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#7b61ff] via-[#8b5cf6] to-[#c084fc] py-4 text-sm font-semibold text-white shadow-[0_14px_40px_rgba(139,92,246,0.35)] hover:shadow-[0_18px_48px_rgba(139,92,246,0.5)] disabled:opacity-60"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                  <motion.svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                    whileHover={{ rotate: 90 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                  >
                     <path d="M12 5v14M5 12h14" />
-                  </svg>
+                  </motion.svg>
                   {loading ? "Creating account…" : "Create account"}
-                </button>
+                </motion.button>
               </form>
 
               <div className="my-5 flex items-center gap-3">
@@ -194,16 +233,18 @@ export default function SignupPage() {
                 <div className="h-px flex-1 bg-slate-200" />
               </div>
 
-              <button
-                type="button"
-                onClick={handleGoogle}
-                disabled={loading}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 transition disabled:opacity-60"
-              >
-                <Image src={googleimg} alt="Google" width={18} height={18} className="object-contain" />
-                Continue with Google
-              </button>
-            </div>
+                  <button
+                    type="button"
+                    onClick={handleGoogle}
+                    disabled={loading}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 transition disabled:opacity-60"
+                  >
+                    <Image src={googleimg} alt="Google" width={18} height={18} className="object-contain" />
+                    Continue with Google
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-6 sm:px-10 lg:px-14 pb-8 pt-6 text-xs text-slate-500">

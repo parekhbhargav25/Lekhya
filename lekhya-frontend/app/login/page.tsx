@@ -6,6 +6,7 @@ import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import googleimg from "@/public/google.png";
 import { AuthHeroPanel } from "../components/AuthHeroPanel";
 
@@ -50,7 +51,11 @@ export default function LoginPage() {
     setSubmitting(false);
 
     if (res?.error) {
-      setError("Invalid email or password.");
+      if (res.error === "EMAIL_NOT_VERIFIED") {
+        setError("Please verify your email. Check your inbox for the 6-digit code, or sign up again to resend.");
+      } else {
+        setError("Invalid email or password.");
+      }
       return;
     }
 
@@ -165,18 +170,33 @@ export default function LoginPage() {
                   </p>
                 )}
 
-                <button
+                <motion.button
                   type="submit"
                   disabled={submitting}
-                  className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#7b61ff] via-[#8b5cf6] to-[#c084fc] py-4 text-sm font-semibold text-white shadow-[0_14px_40px_rgba(139,92,246,0.35)] hover:shadow-[0_18px_48px_rgba(139,92,246,0.5)] transition disabled:opacity-60"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2, duration: 0.4, ease: "easeOut" }}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="group mt-2 w-full inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#7b61ff] via-[#8b5cf6] to-[#c084fc] py-4 text-sm font-semibold text-white shadow-[0_14px_40px_rgba(139,92,246,0.35)] hover:shadow-[0_18px_48px_rgba(139,92,246,0.5)] disabled:opacity-60"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                  <motion.svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                    whileHover={{ x: 3 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 18 }}
+                  >
                     <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
                     <path d="M10 17l5-5-5-5" />
                     <path d="M15 12H3" />
-                  </svg>
+                  </motion.svg>
                   {submitting ? "Signing in…" : "Sign In"}
-                </button>
+                </motion.button>
               </form>
 
               <div className="my-5 flex items-center gap-3">

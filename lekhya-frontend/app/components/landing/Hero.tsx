@@ -2,31 +2,50 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { motion } from "framer-motion";
 
-// app/components/landing/Hero.tsx
+const container = {
+  hidden: { opacity: 0, y: 24 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { staggerChildren: 0.14, delayChildren: 0.18 },
+  },
+};
+
+const item = {
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.65, ease: "easeOut" } },
+};
+
 export default function Hero() {
   const { data: session } = useSession();
   const isSignedIn = Boolean(session?.user);
 
   return (
-    <div>
-      <p className="inline-flex items-center rounded-full bg-white/70 border border-violet-100 px-3 py-1 text-xs font-medium text-violet-600 mb-5 shadow-sm">
+    <motion.div
+      initial="hidden"
+      animate="show"
+      variants={container}
+      className="space-y-6"
+    >
+      <motion.p variants={item} className="inline-flex items-center rounded-full bg-white/70 border border-violet-100 px-3 py-1 text-xs font-medium text-violet-600 mb-5 shadow-sm">
         New • AI-powered receipt &amp; expense automation
-      </p>
+      </motion.p>
 
-      <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-slate-900 leading-tight">
+      <motion.h1 variants={item} className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-slate-900 leading-tight">
         Your smart
         <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#5c4bff] via-[#8a7bff] to-[#30b3ff]">
           expense companion.
         </span>
-      </h1>
+      </motion.h1>
 
-      <p className="mt-5 text-base md:text-lg text-slate-600 max-w-xl">
+      <motion.p variants={item} className="mt-5 text-base md:text-lg text-slate-600 max-w-xl">
         Snap a receipt, let AI extract the details, and see every dollar
         organized automatically—without spreadsheets, manual entry, or stress.
-      </p>
+      </motion.p>
 
-      <div className="mt-8 flex flex-col sm:flex-row gap-4 sm:items-center">
+      <motion.div variants={item} className="mt-8 flex flex-col sm:flex-row gap-4 sm:items-center">
         <Link
           href={isSignedIn ? "/dashboard?upload=1" : "/login"}
           className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-gradient-to-r from-[#7b61ff] to-[#a58fff] text-white font-semibold text-sm md:text-base shadow-md hover:shadow-lg transition"
@@ -41,9 +60,9 @@ export default function Hero() {
             Open dashboard
           </Link>
         )}
-      </div>
+      </motion.div>
 
-      <p className="mt-4 text-xs text-slate-500"></p>
-    </div>
+      <motion.p variants={item} className="mt-4 text-xs text-slate-500"></motion.p>
+    </motion.div>
   );
 }
