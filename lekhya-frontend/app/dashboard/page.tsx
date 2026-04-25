@@ -10,6 +10,7 @@ import { GmailSyncCard } from "./GmailSyncCard";
 import { FinanceInsightsChart } from "./FinanceInsightsChart";
 import { ExpenseOverviewDonut } from "./ExpenseOverviewDonut";
 import { UploadReceiptModal } from "../components/UploadReceiptModal";
+import { FixExtractionModal } from "../components/FixExtractionModal";
 
 type ExtractedReceipt = {
   merchant: string;
@@ -77,6 +78,8 @@ export default function DashboardPage() {
   const [recurring, setRecurring] = useState<RecurringExpense[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const [fixingId, setFixingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   
   function openPreview(url: string) {
     const lower = url.toLowerCase();
@@ -402,10 +405,10 @@ export default function DashboardPage() {
     : "border-emerald-200 bg-emerald-50 text-emerald-800";
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#f6f0ff] to-[#fdf7ff] px-4 py-10">
-      <div className="max-w-5xl mx-auto">
+    <main className="min-h-screen bg-gradient-to-b from-[#f6f0ff] to-[#fdf7ff] px-4 py-6">
+      <div className="max-w-6xl mx-auto">
         {/* Top header */}
-        <header className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-start sm:justify-between">
+        <header className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <Link
               href="/"
@@ -487,6 +490,19 @@ export default function DashboardPage() {
                 <path d="M21 4v5h-5" />
               </svg>
             </button>
+
+            {/* Admin link (only for admins) */}
+            {(session?.user as { isAdmin?: boolean } | undefined)?.isAdmin && (
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-violet-200 bg-violet-50 text-violet-700 text-sm font-semibold hover:bg-violet-100 transition-colors"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+                </svg>
+                Admin
+              </Link>
+            )}
 
             {/* Primary Upload */}
             <button
@@ -587,38 +603,50 @@ export default function DashboardPage() {
           }}
         />
 
-        {/* MAIN CARD */}
-        <section className="mb-8 rounded-3xl bg-white shadow-sm border border-violet-100 overflow-hidden">
-          {/* Hero: this-month total */}
-          <div className="relative bg-gradient-to-br from-[#f3ebff] via-white to-[#faf5ff] px-6 py-8 sm:px-10 sm:py-10 border-b border-violet-100">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-600">
-                This month
-              </p>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 backdrop-blur border border-violet-200 px-2.5 py-1 text-[10px] font-medium text-violet-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
-                AI summaries on
-              </span>
-            </div>
-            <p className="text-6xl sm:text-7xl font-bold tracking-tight text-slate-900 leading-none">
-              <AnimatedNumber value={totalSpent} prefix="$" />
-            </p>
-            <p className={`mt-3 text-sm font-semibold ${monthOverMonthTone}`}>
-              {monthOverMonthLabel}
-            </p>
+        {/* Row A: Insights chart + This month tile */}
+        <section className="mb-5 grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2">
+            <FinanceInsightsChart receipts={receipts} />
           </div>
 
-        </section>
-
-        {/* Insights + category breakdown */}
-        <section className="mb-8 grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-5">
-          <FinanceInsightsChart receipts={receipts} />
-          <ExpenseOverviewDonut receipts={receipts} />
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#f3ebff] via-white to-[#faf5ff] border border-violet-100 p-6 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-600">
+                  This month
+                </p>
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/80 backdrop-blur border border-violet-200 px-2 py-0.5 text-[9px] font-medium text-violet-700">
+                  <span className="h-1 w-1 rounded-full bg-violet-500" />
+                  AI on
+                </span>
+              </div>
+              <p className="text-5xl font-bold tracking-tight text-slate-900 leading-none">
+                <AnimatedNumber value={totalSpent} prefix="$" />
+              </p>
+              <p className={`mt-2 text-xs font-semibold ${monthOverMonthTone}`}>
+                {monthOverMonthLabel}
+              </p>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+              <div className="rounded-2xl bg-white/70 border border-violet-100 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-wider text-slate-500">Receipts</p>
+                <p className="mt-0.5 text-base font-semibold text-slate-900 tabular-nums">
+                  {parsedReceipts.length}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white/70 border border-violet-100 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-wider text-slate-500">Avg / receipt</p>
+                <p className="mt-0.5 text-base font-semibold text-slate-900 tabular-nums">
+                  ${parsedReceipts.length > 0 ? (totalSpent / parsedReceipts.length).toFixed(2) : "0.00"}
+                </p>
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* Recurring expenses */}
         {recurring.length > 0 && (
-          <section className="mb-8">
+          <section className="mb-5">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-900">
                 Recurring expenses
@@ -660,206 +688,282 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {/* Recent receipts list */}
-        <section className="mb-8">
-          <h2 className="text-sm font-semibold text-slate-900 mb-3">
-            Recent receipts
-          </h2>
-          {recentReceipts.length === 0 ? (
-            <p className="text-xs text-slate-600">
-              No parsed receipts yet. Upload from <code>/receipts</code> and
-              run AI extraction.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {recentReceipts.map((r) => {
-                const parsed = r.extractedJson!;
-                return (
-                  <div
-                    key={r.id}
-                    className="flex items-center justify-between rounded-[28px] bg-white border border-slate-100 px-5 py-3 shadow-sm"
-                  >
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-slate-900">
-                        {parsed.merchant || "Unknown merchant"}
-                      </span>
-                      <span className="text-xs text-slate-500 mt-1">
-                        {getCategory(r)}
-                      </span>
-                    </div>
-                    <div className="text-sm font-semibold text-slate-900">
-                      ${parsed.total.toFixed(2)}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        {/* Row B: Donut + Recent receipts bento */}
+        <section className="mb-5 grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-1">
+            <ExpenseOverviewDonut receipts={receipts} />
+          </div>
+          <div className="lg:col-span-2">
+            <h2 className="text-sm font-semibold text-slate-900 mb-3">
+              Recent receipts
+            </h2>
+            {recentReceipts.length === 0 ? (
+              <p className="text-xs text-slate-600">
+                No parsed receipts yet. Upload from <code>/receipts</code> and
+                run AI extraction.
+              </p>
+            ) : (
+            (() => {
+              const byAmount = [...recentReceipts].sort(
+                (a, b) => (b.extractedJson?.total || 0) - (a.extractedJson?.total || 0)
+              );
+              const maxAmount = byAmount[0]?.extractedJson?.total || 1;
+
+              const sizeClass = (rank: number) => {
+                if (rank === 0) return "col-span-2 row-span-2";
+                if (rank <= 2) return "col-span-2 row-span-1";
+                return "col-span-1 row-span-1";
+              };
+
+              const amountClass = (amount: number) => {
+                const ratio = amount / maxAmount;
+                if (ratio >= 0.7) return "text-3xl sm:text-4xl";
+                if (ratio >= 0.4) return "text-2xl";
+                return "text-lg";
+              };
+
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-4 auto-rows-[110px] gap-3 [grid-auto-flow:dense]">
+                  {byAmount.map((r, i) => {
+                    const parsed = r.extractedJson!;
+                    const isHero = i === 0;
+                    return (
+                      <div
+                        key={r.id}
+                        className={`${sizeClass(i)} relative overflow-hidden rounded-3xl border p-4 shadow-sm flex flex-col justify-between ${
+                          isHero
+                            ? "bg-gradient-to-br from-[#7b61ff] via-[#8b5cf6] to-[#c084fc] border-violet-300 text-white"
+                            : "bg-white border-slate-100 text-slate-900"
+                        }`}
+                      >
+                        <div>
+                          <p
+                            className={`text-[11px] uppercase tracking-wider ${
+                              isHero ? "text-white/70" : "text-slate-500"
+                            }`}
+                          >
+                            {getCategory(r)}
+                          </p>
+                          <p
+                            className={`mt-0.5 font-medium leading-tight line-clamp-2 ${
+                              isHero ? "text-base sm:text-lg" : "text-sm"
+                            }`}
+                          >
+                            {parsed.merchant || "Unknown merchant"}
+                          </p>
+                        </div>
+                        <p
+                          className={`${amountClass(parsed.total)} font-bold tabular-nums leading-none`}
+                        >
+                          ${parsed.total.toFixed(2)}
+                        </p>
+                        {isHero && (
+                          <span className="absolute top-3 right-3 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
+                            Top
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()
+            )}
+          </div>
         </section>
 
-        {/* Full detailed list with actions & JSON */}
-        {receipts.length > 0 && (
+        {/* All receipts — tile grid */}
+        {receipts.length > 0 && (() => {
+          const q = search.trim().toLowerCase();
+          const filteredReceipts = q
+            ? receipts.filter((r) => {
+                const p = r.extractedJson;
+                const merchant = (p?.merchant || "").toLowerCase();
+                const category = getCategory(r).toLowerCase();
+                const total = typeof p?.total === "number" ? p.total.toFixed(2) : "";
+                const date = (p?.date || "").toLowerCase();
+                const status = r.status.toLowerCase();
+                return (
+                  merchant.includes(q) ||
+                  category.includes(q) ||
+                  total.includes(q) ||
+                  date.includes(q) ||
+                  status.includes(q)
+                );
+              })
+            : receipts;
+
+          return (
           <section className="mb-10">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-900">
+            <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <h2 className="text-sm font-semibold text-slate-900 shrink-0">
                 All receipts
               </h2>
-              <p className="text-xs text-slate-500">
-                Showing 5 at a time. Scroll for more.
-              </p>
+              <div className="flex items-center gap-3 sm:justify-end sm:flex-1">
+                <div className="relative flex-1 sm:flex-initial sm:w-72">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m21 21-4.3-4.3" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search merchant, category, amount…"
+                    className="w-full rounded-full border border-slate-200 bg-white pl-9 pr-8 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100"
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      aria-label="Clear search"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                        <path d="M18 6 6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 whitespace-nowrap">
+                  {q
+                    ? `${filteredReceipts.length} of ${receipts.length}`
+                    : `${receipts.length} total${receipts.length > 8 ? " · scroll" : ""}`}
+                </p>
+              </div>
             </div>
-            <div className="max-h-[920px] overflow-y-auto rounded-[32px] pr-2">
-              <div className="space-y-4">
-              {receipts.map((r) => {
-                const parsed = r.extractedJson;
-                const created = new Date(r.createdAt);
+            {filteredReceipts.length === 0 ? (
+              <div className="rounded-3xl bg-white border border-slate-100 px-6 py-10 text-center">
+                <p className="text-sm text-slate-500">
+                  No receipts match <span className="font-semibold text-slate-700">&ldquo;{search}&rdquo;</span>
+                </p>
+              </div>
+            ) : (
+            <div className="max-h-[640px] overflow-y-auto rounded-3xl pr-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                {filteredReceipts.map((r) => {
+                  const parsed = r.extractedJson;
+                  const created = new Date(r.createdAt);
 
-                return (
-                  <div
-                    key={r.id}
-                    className="rounded-3xl bg-white/80 backdrop-blur border border-violet-100 px-5 py-4 shadow-sm"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="space-y-1">
-                        <p className="text-xs text-slate-500">
-                          ID:{" "}
-                          <span className="font-mono text-[11px]">
-                            {r.id}
-                          </span>
-                        </p>
-
-                        <p className="text-xs text-slate-500">
-                          Created:{" "}
-                          {created.toLocaleString(undefined, {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          })}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-col items-end gap-2 sm:items-end">
+                  return (
+                    <div
+                      key={r.id}
+                      className="relative flex flex-col rounded-2xl bg-white border border-violet-100 p-4 shadow-sm hover:shadow-md hover:border-violet-200 transition min-h-[170px]"
+                    >
+                      <div className="flex items-start justify-between mb-2">
                         <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                             r.status === "parsed"
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                              ? "bg-emerald-50 text-emerald-700"
                               : r.status === "error"
-                              ? "bg-red-50 text-red-700 border border-red-100"
-                              : "bg-slate-100 text-slate-700 border border-slate-200"
+                                ? "bg-red-50 text-red-700"
+                                : "bg-slate-100 text-slate-600"
                           }`}
                         >
                           {r.status}
                         </span>
-
-                        <button
-                          onClick={() => runExtraction(r.id)}
-                          disabled={runningId === r.id}
-                          className="px-5 py-2 rounded-full bg-[#8b5cf6] text-white text-sm font-semibold shadow-sm disabled:opacity-60"
-                        >
-                          {runningId === r.id
-                            ? "Running…"
-                            : parsed
-                            ? "Re-run AI extraction"
-                            : "Run AI extraction"}
-                        </button>
-
-                        {/* NEW: Delete button */}
-                        <button
-                          onClick={async () => {
-                            if (!confirm("Delete this receipt?")) return;
-
-                            try {
-                              const res = await fetch(`/api/receipts/${r.id}`, {
-                                method: "DELETE",
-                                headers: userId ? { "x-user-id": userId } : {},
-                                credentials: "include",
-                              });
-                              const data = await res.json();
-                              if (!res.ok) throw new Error(data.error || "Delete failed");
-
-                              // remove from local state
-                              setReceipts((prev) => prev.filter((rec) => rec.id !== r.id));
-                            } catch (err) {
-                              console.error(err);
-                              alert("Failed to delete receipt");
-                            }
-                          }}
-                          className="flex items-center gap-1 px-3 py-1 text-xs font-semibold 
-                                    rounded-full border border-red-200 
-                                    text-red-700 bg-red-50 
-                                    hover:bg-red-100 transition"
-                        >
-                          <span>🗑️</span>Delete
-                        </button>
-                      </div>
-                    </div>
-
-                    {parsed && (
-                      <div className="mt-4 rounded-2xl bg-[#f6f0ff] border border-violet-100 px-4 py-3">
-                        <div className="flex flex-wrap items-center gap-3 mb-2">
-                          <p className="text-sm font-semibold text-slate-900">
-                            {parsed.merchant || "Unknown merchant"}
-                          </p>
-
-                          {parsed.category && (
-                            <span className="text-xs rounded-full bg-white px-3 py-1 text-violet-700 border border-violet-200">
-                              {parsed.category}
-                            </span>
+                        <div className="flex items-center gap-1">
+                          {parsed && (
+                            <button
+                              type="button"
+                              onClick={() => openPreview(r.s3Url)}
+                              aria-label="View receipt image"
+                              title="View receipt"
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                            </button>
                           )}
-
-                          {/* NEW: Show receipt button */}
+                          {parsed && (
+                            <button
+                              type="button"
+                              onClick={() => setFixingId(r.id)}
+                              aria-label="Fix extraction"
+                              title="Something off?"
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-full text-violet-500 hover:bg-violet-50 hover:text-violet-700"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z" />
+                              </svg>
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => openPreview(r.s3Url)}
-                            className="text-xs font-semibold px-3 py-1 rounded-full 
-                                      border border-violet-200 bg-white 
-                                      text-violet-700 hover:bg-violet-50 
-                                      transition"
+                            onClick={async () => {
+                              if (!confirm("Delete this receipt?")) return;
+                              try {
+                                const res = await fetch(`/api/receipts/${r.id}`, {
+                                  method: "DELETE",
+                                  headers: userId ? { "x-user-id": userId } : {},
+                                  credentials: "include",
+                                });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data.error || "Delete failed");
+                                setReceipts((prev) => prev.filter((rec) => rec.id !== r.id));
+                              } catch (err) {
+                                console.error(err);
+                                alert("Failed to delete receipt");
+                              }
+                            }}
+                            aria-label="Delete receipt"
+                            title="Delete"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-600"
                           >
-                            Show receipt
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                              <path d="M3 6h18" />
+                              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                            </svg>
                           </button>
                         </div>
-
-                        <div className="flex flex-wrap gap-4 text-xs text-slate-600">
-                          <div>
-                            <span className="font-medium text-slate-800">
-                              Date:
-                            </span>{" "}
-                            {parsed.date || "—"}
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-800">
-                              Total:
-                            </span>{" "}
-                            {parsed.total != null
-                              ? `$${parsed.total.toFixed(2)}`
-                              : "—"}
-                          </div>
-                          {parsed.tax != null && (
-                            <div>
-                              <span className="font-medium text-slate-800">
-                                Tax:
-                              </span>{" "}
-                              ${parsed.tax.toFixed(2)}
-                            </div>
-                          )}
-                          {parsed.paymentMethod && (
-                            <div>
-                              <span className="font-medium text-slate-800">
-                                Payment:
-                              </span>{" "}
-                              {parsed.paymentMethod}
-                            </div>
-                          )}
-                        </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+
+                      {parsed ? (
+                        <>
+                          <p className="text-sm font-semibold text-slate-900 truncate" title={parsed.merchant || "Unknown merchant"}>
+                            {parsed.merchant || "Unknown merchant"}
+                          </p>
+                          <p className="text-[11px] text-slate-500 mb-3 truncate">
+                            {getCategory(r)}
+                          </p>
+                          <div className="mt-auto">
+                            <p className="text-2xl font-bold tabular-nums text-slate-900 leading-none">
+                              {typeof parsed.total === "number"
+                                ? `$${parsed.total.toFixed(2)}`
+                                : "—"}
+                            </p>
+                            <p className="mt-1 text-[10px] text-slate-400">
+                              {parsed.date || created.toLocaleDateString()}
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex flex-1 flex-col items-start justify-between">
+                          <p className="text-xs text-slate-500">
+                            Awaiting extraction
+                          </p>
+                          <button
+                            onClick={() => runExtraction(r.id)}
+                            disabled={runningId === r.id}
+                            className="mt-3 w-full rounded-full bg-[#8b5cf6] px-3 py-1.5 text-xs font-semibold text-white shadow-sm disabled:opacity-60"
+                          >
+                            {runningId === r.id ? "Running…" : "Run AI"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
+            )}
           </section>
-        )}
+          );
+        })()}
       </div>
       {previewUrl && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
@@ -919,6 +1023,28 @@ export default function DashboardPage() {
               }}
               uploadsRemainingToday={uploadLimit?.remainingToday}
               dailyUploadLimit={uploadLimit?.limit}
+            />
+            <FixExtractionModal
+              open={Boolean(fixingId)}
+              onClose={() => setFixingId(null)}
+              receiptId={fixingId || ""}
+              current={
+                receipts.find((r) => r.id === fixingId)?.extractedJson || null
+              }
+              onSuccess={(updated) => {
+                setReceipts((prev) =>
+                  prev.map((r) =>
+                    r.id === fixingId
+                      ? {
+                          ...r,
+                          status: updated.status,
+                          extractedJson: (updated.extractedJson ??
+                            null) as ExtractedReceipt | null,
+                        }
+                      : r
+                  )
+                );
+              }}
             />
     </main>
 

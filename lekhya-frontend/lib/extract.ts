@@ -47,12 +47,14 @@ export async function extractReceiptFromImageMock(_params: {
 // 🚀 Real extraction using OpenAI directly (vision + JSON)
 export async function extractReceiptFromImageLLM(params: {
   s3Url: string;
+  previousAttempt?: ExtractedReceipt | null;
+  userFeedback?: string | null;
 }): Promise<ExtractedReceipt> {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("Missing OPENAI_API_KEY environment variable");
   }
 
-  const { s3Url } = params;
+  const { s3Url, previousAttempt, userFeedback } = params;
 
   const systemPrompt = `
 You are an expert system that extracts structured expense data from receipts.
@@ -66,9 +68,26 @@ Rules:
 - "total" should be the final total amount charged.
 - "category" should be a short label (e.g. "Groceries", "Dining", "Fuel", "Transport", "Shopping", "Utilities", "Healthcare", etc.).
 - "lineItems" should be as descriptive as possible. Expand abbreviations if you can infer them.
+- Always re-verify your answer against the image. Do not blindly accept previous output or user claims if the image disagrees.
 `;
 
-  const userText = `
+  const feedbackBlock =
+    previousAttempt && userFeedback
+      ? `
+
+A previous extraction returned this JSON:
+${JSON.stringify(previousAttempt, null, 2)}
+
+The user reported the following errors with that extraction:
+"""
+${userFeedback}
+"""
+
+Re-extract the receipt carefully, paying particular attention to the issues the user mentioned. Verify everything against the image — if the user's claim disagrees with what the image actually shows, trust the image.
+`
+      : "";
+
+  const userText = `${feedbackBlock}
 Please extract the purchase information from this receipt image.
 
 The fields you must return:

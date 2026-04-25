@@ -1,6 +1,5 @@
 // app/components/landing/Navbar.tsx
-import Image from "next/image";
-import lekhyaLogo from '../../../public/LekhyaLogo.png';
+import { LekhyaLogo } from "../LekhyaLogo";
 import { NavbarAuthButtons } from "../NavbarAuthButtons";
 
 export default function Navbar() {
@@ -8,13 +7,7 @@ export default function Navbar() {
     <header className="fixed inset-x-0 top-0 z-30 border-b border-slate-200 bg-gradient-to-b from-[#f3ecff]/95 to-[#f3ecff]/85 backdrop-blur">
       <div className="w-full max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Image
-            src={lekhyaLogo}
-            alt="Lekhya logo"
-            width={40}
-            height={40}
-            className="rounded-full object-cover"
-          />
+          <LekhyaLogo size={36} />
           <span className="font-semibold tracking-tight text-slate-900 text-xl">
             Lekhya
           </span>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
+import { LekhyaLogo } from "../LekhyaLogo";
 
 const container = {
   hidden: { opacity: 0, y: 24 },
@@ -29,6 +30,15 @@ export default function Hero() {
       variants={container}
       className="space-y-6"
     >
+      <motion.div variants={item} className="mb-2">
+        <motion.div
+          animate={{ y: [0, -6, 0] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <LekhyaLogo size={72} glow />
+        </motion.div>
+      </motion.div>
+
       <motion.p variants={item} className="inline-flex items-center rounded-full bg-white/70 border border-violet-100 px-3 py-1 text-xs font-medium text-violet-600 mb-5 shadow-sm">
         New • AI-powered receipt &amp; expense automation
       </motion.p>

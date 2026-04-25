@@ -7,19 +7,32 @@ datasource db {
 }
 
 model Receipt {
-  id               String   @id @default(cuid())
+  id               String              @id @default(cuid())
   userId           String
   s3Key            String?
   s3Url            String?
-  status           String   @default("uploaded")
+  status           String              @default("uploaded")
   extractedJson    Json?
-  createdAt        DateTime @default(now())
+  createdAt        DateTime            @default(now())
   categoryOverride String?
-  source           String   @default("upload")
+  source           String              @default("upload")
   externalId       String?
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  corrections      ReceiptCorrection[]
 
   @@unique([userId, externalId])
+}
+
+model ReceiptCorrection {
+  id           String   @id @default(cuid())
+  receiptId    String
+  userFeedback String
+  previousJson Json
+  newJson      Json
+  createdAt    DateTime @default(now())
+  receipt      Receipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  @@index([receiptId])
 }
 
 model User {

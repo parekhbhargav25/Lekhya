@@ -3,6 +3,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
+import { isAdminEmail } from "@/lib/admin";
 import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
@@ -104,21 +105,23 @@ export const authOptions: NextAuthOptions = {
   
       if (email) {
         token.email = email;
-  
+        token.isAdmin = isAdminEmail(email);
+
         const dbUser = await prisma.user.findUnique({
           where: { email },
           select: { id: true },
         });
-  
+
         if (dbUser) token.uid = dbUser.id;
       }
-  
+
       return token;
     },
-  
+
     async session({ session, token }) {
       if (session.user) {
         (session.user as any).id = token.uid;
+        (session.user as any).isAdmin = Boolean(token.isAdmin);
         session.user.email = token.email as string;
       }
       return session;
